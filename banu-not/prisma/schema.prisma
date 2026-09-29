@@ -1,0 +1,315 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  passwordHash   String
+  displayName    String
+  firstName      String?
+  lastName       String?
+  avatarUrl      String?
+  bio            String?
+  universityId   String?
+  facultyId      String?
+  departmentId   String?
+  classYear      Int?
+  role           String    @default("user") // user, moderator, admin
+  isEmailVerified Boolean  @default(false)
+  emailVerifyToken String?
+  resetToken     String?
+  resetTokenExpiry DateTime?
+  isActive       Boolean   @default(true)
+  isBanned       Boolean   @default(false)
+  profilePublic  Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  university  University? @relation(fields: [universityId], references: [id])
+  faculty     Faculty?    @relation(fields: [facultyId], references: [id])
+  department  Department? @relation(fields: [departmentId], references: [id])
+
+  notes       Note[]
+  bookmarks   Bookmark[]
+  ratings     Rating[]
+  comments    Comment[]
+  reports     Report[]    @relation("ReportedBy")
+  notifications Notification[]
+  auditLogs   AuditLog[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model University {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  shortName String?
+  logoUrl   String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  faculties Faculty[]
+  courses   Course[]
+  notes     Note[]
+  users     User[]
+}
+
+model Faculty {
+  id           String   @id @default(uuid())
+  name         String
+  shortName    String?
+  universityId String
+  type         String   @default("faculty") // faculty, institute, vocational_school
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  university  University  @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  departments Department[]
+  notes       Note[]
+  users       User[]
+
+  @@unique([name, universityId])
+  @@index([universityId])
+}
+
+model Department {
+  id        String   @id @default(uuid())
+  name      String
+  shortName String?
+  facultyId String
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  faculty           Faculty             @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  courseDepartments CourseDepartment[]
+  notes             Note[]
+  users             User[]
+
+  @@unique([name, facultyId])
+  @@index([facultyId])
+}
+
+model Course {
+  id           String   @id @default(uuid())
+  name         String
+  code         String?
+  universityId String
+  semester     String?  // Güz, Bahar, Yaz
+  year         Int?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  university        University         @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  courseDepartments CourseDepartment[]
+  notes             Note[]
+
+  @@index([universityId])
+  @@index([code])
+}
+
+model CourseDepartment {
+  id           String @id @default(uuid())
+  courseId      String
+  departmentId String
+
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, departmentId])
+}
+
+model Note {
+  id           String   @id @default(uuid())
+  title        String
+  description  String?
+  noteType     String   // ders_notu, ozet, cikmis_soru, sunum, lab, proje, calisma_rehberi, diger
+  contentLang  String   @default("tr")
+  universityId String?
+  facultyId    String?
+  departmentId String?
+  courseId      String?
+  courseCode    String?
+  semester     String?
+  academicYear String?
+  topic        String?
+  userId       String
+  status       String   @default("published") // draft, pending_review, published, rejected, removed
+  rejectionReason String?
+  downloadCount Int     @default(0)
+  viewCount    Int      @default(0)
+  fileHash     String?  // for duplicate detection
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id])
+  university University? @relation(fields: [universityId], references: [id])
+  faculty    Faculty?    @relation(fields: [facultyId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+  course     Course?     @relation(fields: [courseId], references: [id])
+
+  files      NoteFile[]
+  tags       NoteTag[]
+  bookmarks  Bookmark[]
+  ratings    Rating[]
+  comments   Comment[]
+  reports    Report[]
+
+  @@index([userId])
+  @@index([universityId])
+  @@index([facultyId])
+  @@index([departmentId])
+  @@index([courseId])
+  @@index([status])
+  @@index([noteType])
+  @@index([createdAt])
+}
+
+model NoteFile {
+  id           String @id @default(uuid())
+  noteId       String
+  originalName String
+  storagePath  String
+  storageKey   String @unique
+  mimeType     String
+  fileSize     Int
+  scanStatus   String @default("pending") // pending, clean, infected, error
+  createdAt    DateTime @default(now())
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+}
+
+model Tag {
+  id   String @id @default(uuid())
+  name String @unique
+
+  notes NoteTag[]
+}
+
+model NoteTag {
+  id     String @id @default(uuid())
+  noteId String
+  tagId  String
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, tagId])
+}
+
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  noteId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, noteId])
+}
+
+model Rating {
+  id        String   @id @default(uuid())
+  userId    String
+  noteId    String
+  score     Int      // 1-5
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, noteId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  userId    String
+  noteId    String
+  content   String
+  isHidden  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+}
+
+model Report {
+  id        String   @id @default(uuid())
+  noteId    String
+  userId    String
+  reason    String   // wrong_category, copyright, harmful_content, personal_info, spam, other
+  details   String?
+  status    String   @default("pending") // pending, reviewing, resolved, dismissed
+  resolution String?
+  resolvedBy String?
+  resolvedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, name: "ReportedBy")
+
+  @@index([noteId])
+  @@index([status])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // note_approved, note_rejected, new_comment, new_rating, report_resolved
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  target    String   // note, user, report, course, etc
+  targetId  String?
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([target, targetId])
+  @@index([createdAt])
+}
+
+model SiteSetting {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String
+  type  String @default("string") // string, number, boolean, json
+  label String?
+  description String?
+  updatedAt DateTime @updatedAt
+}

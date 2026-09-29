@@ -1,0 +1,279 @@
+import Database from 'better-sqlite3';
+import path from 'path';
+
+const DB_PATH = path.resolve(process.cwd(), 'data', 'banunot.db');
+
+let db: Database.Database;
+
+export function getDb(): Database.Database {
+  if (!db) {
+    // Ensure data directory exists
+    const fs = require('fs');
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    db = new Database(DB_PATH);
+    db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
+    db.pragma('busy_timeout = 5000');
+    
+    initializeDatabase(db);
+  }
+  return db;
+}
+
+function initializeDatabase(db: Database.Database) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      first_name TEXT,
+      last_name TEXT,
+      avatar_url TEXT,
+      bio TEXT,
+      university_id TEXT,
+      faculty_id TEXT,
+      department_id TEXT,
+      class_year INTEGER,
+      role TEXT DEFAULT 'user' CHECK(role IN ('user', 'moderator', 'admin')),
+      is_email_verified INTEGER DEFAULT 0,
+      email_verify_token TEXT,
+      reset_token TEXT,
+      reset_token_expiry TEXT,
+      is_active INTEGER DEFAULT 1,
+      is_banned INTEGER DEFAULT 0,
+      profile_public INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS universities (
+      id TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      short_name TEXT,
+      logo_url TEXT,
+      is_active INTEGER DEFAULT 1,
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS faculties (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      short_name TEXT,
+      university_id TEXT NOT NULL,
+      type TEXT DEFAULT 'faculty' CHECK(type IN ('faculty', 'institute', 'vocational_school', 'conservatory')),
+      is_active INTEGER DEFAULT 1,
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (university_id) REFERENCES universities(id) ON DELETE CASCADE,
+      UNIQUE(name, university_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS departments (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      short_name TEXT,
+      faculty_id TEXT NOT NULL,
+      is_active INTEGER DEFAULT 1,
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (faculty_id) REFERENCES faculties(id) ON DELETE CASCADE,
+      UNIQUE(name, faculty_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS courses (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      code TEXT,
+      university_id TEXT NOT NULL,
+      semester TEXT,
+      year INTEGER,
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (university_id) REFERENCES universities(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS course_departments (
+      id TEXT PRIMARY KEY,
+      course_id TEXT NOT NULL,
+      department_id TEXT NOT NULL,
+      FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+      FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
+      UNIQUE(course_id, department_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS notes (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      note_type TEXT NOT NULL,
+      content_lang TEXT DEFAULT 'tr',
+      university_id TEXT,
+      faculty_id TEXT,
+      department_id TEXT,
+      course_id TEXT,
+      course_code TEXT,
+      semester TEXT,
+      academic_year TEXT,
+      topic TEXT,
+      user_id TEXT NOT NULL,
+      status TEXT DEFAULT 'published' CHECK(status IN ('draft', 'pending_review', 'published', 'rejected', 'removed')),
+      rejection_reason TEXT,
+      download_count INTEGER DEFAULT 0,
+      view_count INTEGER DEFAULT 0,
+      file_hash TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (university_id) REFERENCES universities(id),
+      FOREIGN KEY (faculty_id) REFERENCES faculties(id),
+      FOREIGN KEY (department_id) REFERENCES departments(id),
+      FOREIGN KEY (course_id) REFERENCES courses(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS note_files (
+      id TEXT PRIMARY KEY,
+      note_id TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      storage_path TEXT NOT NULL,
+      storage_key TEXT UNIQUE NOT NULL,
+      mime_type TEXT NOT NULL,
+      file_size INTEGER NOT NULL,
+      scan_status TEXT DEFAULT 'pending' CHECK(scan_status IN ('pending', 'clean', 'infected', 'error')),
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS tags (
+      id TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS note_tags (
+      id TEXT PRIMARY KEY,
+      note_id TEXT NOT NULL,
+      tag_id TEXT NOT NULL,
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+      UNIQUE(note_id, tag_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS bookmarks (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      note_id TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+      UNIQUE(user_id, note_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS ratings (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      note_id TEXT NOT NULL,
+      score INTEGER NOT NULL CHECK(score >= 1 AND score <= 5),
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+      UNIQUE(user_id, note_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS comments (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      note_id TEXT NOT NULL,
+      content TEXT NOT NULL,
+      is_hidden INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS reports (
+      id TEXT PRIMARY KEY,
+      note_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      details TEXT,
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'reviewing', 'resolved', 'dismissed')),
+      resolution TEXT,
+      resolved_by TEXT,
+      resolved_at TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      link TEXT,
+      is_read INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      action TEXT NOT NULL,
+      target TEXT NOT NULL,
+      target_id TEXT,
+      details TEXT,
+      ip_address TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS site_settings (
+      id TEXT PRIMARY KEY,
+      key TEXT UNIQUE NOT NULL,
+      value TEXT NOT NULL,
+      type TEXT DEFAULT 'string',
+      label TEXT,
+      description TEXT,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    -- Indexes
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+    CREATE INDEX IF NOT EXISTS idx_faculties_university ON faculties(university_id);
+    CREATE INDEX IF NOT EXISTS idx_departments_faculty ON departments(faculty_id);
+    CREATE INDEX IF NOT EXISTS idx_courses_university ON courses(university_id);
+    CREATE INDEX IF NOT EXISTS idx_courses_code ON courses(code);
+    CREATE INDEX IF NOT EXISTS idx_notes_user ON notes(user_id);
+    CREATE INDEX IF NOT EXISTS idx_notes_university ON notes(university_id);
+    CREATE INDEX IF NOT EXISTS idx_notes_faculty ON notes(faculty_id);
+    CREATE INDEX IF NOT EXISTS idx_notes_department ON notes(department_id);
+    CREATE INDEX IF NOT EXISTS idx_notes_course ON notes(course_id);
+    CREATE INDEX IF NOT EXISTS idx_notes_status ON notes(status);
+    CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(note_type);
+    CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created_at);
+    CREATE INDEX IF NOT EXISTS idx_note_files_note ON note_files(note_id);
+    CREATE INDEX IF NOT EXISTS idx_comments_note ON comments(note_id);
+    CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
+    CREATE INDEX IF NOT EXISTS idx_reports_note ON reports(note_id);
+    CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read);
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_target ON audit_logs(target, target_id);
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at);
+  `);
+}
+
+export default getDb;
