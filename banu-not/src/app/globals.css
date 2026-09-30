@@ -1,6 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+/* Tailwind v4 next-themes compatibility */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 @theme {
   --color-navy-50: #f0f4f8;
   --color-navy-100: #d9e2ec;
@@ -82,6 +85,83 @@
 
   input, textarea, select {
     font-family: inherit;
+  }
+
+  /* Dark mode specific overrides */
+  [data-theme='dark'] body {
+    background-color: var(--color-navy-950);
+    color: var(--color-navy-100);
+  }
+
+  [data-theme='dark'] .card,
+  [data-theme='dark'] .modal-content,
+  [data-theme='dark'] .absolute.bg-white,
+  [data-theme='dark'] header.bg-white {
+    background-color: var(--color-navy-900) !important;
+    border-color: var(--color-navy-800) !important;
+    color: var(--color-navy-50) !important;
+  }
+
+  [data-theme='dark'] .input {
+    background-color: var(--color-navy-800) !important;
+    border-color: var(--color-navy-700) !important;
+    color: var(--color-navy-50) !important;
+  }
+  
+  [data-theme='dark'] .input::placeholder {
+    color: var(--color-navy-400) !important;
+  }
+
+  [data-theme='dark'] .text-navy-900 {
+    color: var(--color-navy-50) !important;
+  }
+  
+  [data-theme='dark'] .text-navy-800 {
+    color: var(--color-navy-100) !important;
+  }
+  
+  [data-theme='dark'] .text-navy-700 {
+    color: var(--color-navy-200) !important;
+  }
+  
+  [data-theme='dark'] .text-navy-600 {
+    color: var(--color-navy-300) !important;
+  }
+  
+  [data-theme='dark'] .text-navy-500 {
+    color: var(--color-navy-400) !important;
+  }
+
+  [data-theme='dark'] .bg-white {
+    background-color: var(--color-navy-900) !important;
+  }
+  
+  [data-theme='dark'] .bg-navy-50 {
+    background-color: var(--color-navy-800) !important;
+  }
+  
+  [data-theme='dark'] .bg-navy-100 {
+    background-color: var(--color-navy-700) !important;
+  }
+  
+  [data-theme='dark'] .border-navy-100 {
+    border-color: var(--color-navy-800) !important;
+  }
+
+  [data-theme='dark'] .btn-secondary {
+    background-color: var(--color-navy-800);
+    color: var(--color-navy-50);
+    border-color: var(--color-navy-700);
+  }
+  
+  [data-theme='dark'] .btn-secondary:hover:not(:disabled) {
+    background-color: var(--color-navy-700);
+    border-color: var(--color-navy-600);
+  }
+  
+  /* Prevent hero section from inverting text colors back to dark */
+  [data-theme='dark'] section.bg-gradient-to-br .text-navy-300 {
+    color: var(--color-navy-300) !important;
   }
 }
 
@@ -426,5 +506,19 @@
   }
   ::-webkit-scrollbar-thumb:hover {
     background: var(--color-navy-400);
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+  .transform-style-3d {
+    transform-style: preserve-3d;
+  }
+  .backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  .rotate-y-180 {
+    transform: rotateY(180deg);
   }
 }

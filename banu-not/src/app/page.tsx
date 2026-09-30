@@ -2,21 +2,29 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
   Search, Upload, BookOpen, TrendingUp, Clock,
   ArrowRight, GraduationCap, Users, Download, Star, ChevronRight
 } from 'lucide-react';
 import NoteCard from '@/components/NoteCard';
+import ExamCountdown from '@/components/ExamCountdown';
 
 export default function HomePage() {
+  const { data: session } = useSession();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [recentNotes, setRecentNotes] = useState<any[]>([]);
+  const [followedNotes, setFollowedNotes] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'recent' | 'followed'>('recent');
   const [popularNotes, setPopularNotes] = useState<any[]>([]);
+  const [recommendedNotes, setRecommendedNotes] = useState<any[]>([]);
+  const [recentRequests, setRecentRequests] = useState<any[]>([]);
   const [faculties, setFaculties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [universityId, setUniversityId] = useState('');
+  const [siteStats, setSiteStats] = useState({ notes: 0, users: 0, courses: 0 });
 
   useEffect(() => {
     loadData();
@@ -24,6 +32,13 @@ export default function HomePage() {
 
   async function loadData() {
     try {
+      // Get stats
+      const statsRes = await fetch('/api/stats');
+      const statsData = await statsRes.json();
+      if (statsData.success) {
+        setSiteStats(statsData.data);
+      }
+
       // Get university
       const uniRes = await fetch('/api/categories?type=universities');
       const uniData = await uniRes.json();
@@ -40,10 +55,29 @@ export default function HomePage() {
       const recentData = await recentRes.json();
       if (recentData.success) setRecentNotes(recentData.data.notes);
 
+      // Get followed courses notes (we try unconditionally, API returns 0 if not logged in)
+      const followedRes = await fetch('/api/notes?sort=followed_courses&limit=4');
+      const followedData = await followedRes.json();
+      if (followedData.success) setFollowedNotes(followedData.data.notes);
+
       // Get popular notes
       const popRes = await fetch('/api/notes?sort=popular&limit=4');
       const popData = await popRes.json();
       if (popData.success) setPopularNotes(popData.data.notes);
+
+      // Get recommended notes (if logged in, but we might not have session immediately in loadData, so we fetch it later or blindly)
+      const recRes = await fetch('/api/notes?sort=recommended&limit=4');
+      const recData = await recRes.json();
+      if (recData.success && recData.data.notes.length > 0) {
+        setRecommendedNotes(recData.data.notes);
+      }
+
+      // Get recent requests
+      const reqRes = await fetch('/api/requests');
+      const reqData = await reqRes.json();
+      if (reqData.success) {
+        setRecentRequests(reqData.data.filter((r: any) => r.status === 'pending').slice(0, 4));
+      }
     } catch (error) {
       console.error('Data load error:', error);
     } finally {
@@ -59,9 +93,9 @@ export default function HomePage() {
   };
 
   const stats = [
-    { icon: BookOpen, label: 'Not Paylaşıldı', value: recentNotes.length > 0 ? '10+' : '0' },
-    { icon: Users, label: 'Aktif Öğrenci', value: '4' },
-    { icon: GraduationCap, label: 'Ders Kapsamı', value: '19+' },
+    { icon: BookOpen, label: 'Not Paylaşıldı', value: siteStats.notes.toLocaleString('tr-TR') },
+    { icon: Users, label: 'Aktif Öğrenci', value: siteStats.users.toLocaleString('tr-TR') },
+    { icon: GraduationCap, label: 'Ders Kapsamı', value: siteStats.courses.toLocaleString('tr-TR') },
   ];
 
   return (
@@ -77,7 +111,7 @@ export default function HomePage() {
           <div className="max-w-3xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-full text-sm text-teal-300 mb-6 backdrop-blur-sm border border-white/10">
               <GraduationCap className="w-4 h-4" />
-              Balıkesir Üniversitesi Öğrenci Platformu
+              Bandırma Onyedi Eylül Üniversitesi Öğrenci Platformu
             </div>
             
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight">
@@ -143,8 +177,25 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Motivation & Quote */}
+      <section className="container-app py-8">
+        <div className="bg-white border border-navy-100 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+            <span className="text-2xl">💡</span>
+          </div>
+          <div className="flex-1 text-center md:text-left">
+            <h3 className="text-sm font-bold text-navy-400 uppercase tracking-wider mb-1">Günün Sözü</h3>
+            <p className="text-lg font-medium text-navy-800 italic">
+              "Başarı, her gün tekrarlanan küçük çabaların toplamıdır."
+            </p>
+            <p className="text-sm text-navy-500 mt-1">— Robert Collier</p>
+          </div>
+        </div>
+      </section>
+
       {/* Faculties */}
-      <section className="container-app py-10 sm:py-14">
+      <section className="container-app pb-10 sm:pb-14">
+        <ExamCountdown />
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-navy-900">
             Fakülteler
@@ -173,15 +224,27 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Recent Notes */}
+      {/* Recent Notes / Followed Courses */}
       <section className="bg-white border-y border-navy-100">
         <div className="container-app py-10 sm:py-14">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-teal-600" />
-              <h2 className="text-xl sm:text-2xl font-bold text-navy-900">Yeni Eklenenler</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+            <div className="flex items-center gap-1 bg-navy-50 p-1 rounded-lg w-full sm:w-auto overflow-x-auto">
+              <button 
+                onClick={() => setActiveTab('recent')}
+                className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === 'recent' ? 'bg-white text-teal-700 shadow-sm' : 'text-navy-600 hover:text-navy-900'}`}
+              >
+                <Clock className="w-4 h-4" /> Yeni Eklenenler
+              </button>
+              {session && (
+                <button 
+                  onClick={() => setActiveTab('followed')}
+                  className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === 'followed' ? 'bg-white text-teal-700 shadow-sm' : 'text-navy-600 hover:text-navy-900'}`}
+                >
+                  <BookOpen className="w-4 h-4" /> Takip Ettiğim Dersler
+                </button>
+              )}
             </div>
-            <Link href="/kesfet?sort=newest" className="text-sm font-medium text-teal-600 hover:text-teal-700 flex items-center gap-1">
+            <Link href={activeTab === 'recent' ? "/kesfet?sort=newest" : "/kesfet?sort=followed_courses"} className="text-sm font-medium text-teal-600 hover:text-teal-700 flex items-center gap-1 shrink-0">
               Tümü <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
@@ -196,24 +259,66 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-          ) : recentNotes.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {recentNotes.map(note => (
-                <NoteCard key={note.id} note={note} />
-              ))}
-            </div>
+          ) : activeTab === 'recent' ? (
+            recentNotes.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {recentNotes.map(note => (
+                  <NoteCard key={note.id} note={note} />
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <BookOpen className="w-12 h-12" />
+                <h3 className="text-lg font-semibold text-navy-800 mt-2">Henüz not eklenmemiş</h3>
+                <p className="text-navy-500 mt-1">İlk notu paylaşan sen ol!</p>
+                <Link href="/yukle" className="btn btn-teal mt-4">
+                  <Upload className="w-4 h-4" /> Not Paylaş
+                </Link>
+              </div>
+            )
           ) : (
-            <div className="empty-state">
-              <BookOpen className="w-12 h-12" />
-              <h3 className="text-lg font-semibold text-navy-800 mt-2">Henüz not eklenmemiş</h3>
-              <p className="text-navy-500 mt-1">İlk notu paylaşan sen ol!</p>
-              <Link href="/yukle" className="btn btn-teal mt-4">
-                <Upload className="w-4 h-4" /> Not Paylaş
-              </Link>
-            </div>
+            followedNotes.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {followedNotes.map(note => (
+                  <NoteCard key={note.id} note={note} />
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <BookOpen className="w-12 h-12" />
+                <h3 className="text-lg font-semibold text-navy-800 mt-2">Ders Takibi</h3>
+                <p className="text-navy-500 mt-1">Takip ettiğiniz derslerde henüz not yok veya hiç ders takip etmiyorsunuz.</p>
+                <Link href="/dersler" className="btn btn-teal mt-4">
+                  Dersleri Keşfet
+                </Link>
+              </div>
+            )
           )}
         </div>
       </section>
+
+      {/* Recommended Notes (Sizin İçin) */}
+      {session?.user && recommendedNotes.length > 0 && (
+        <section className="bg-teal-50/50 border-b border-navy-100">
+          <div className="container-app py-10 sm:py-14">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Star className="w-5 h-5 text-teal-600 fill-teal-600" />
+                <h2 className="text-xl sm:text-2xl font-bold text-navy-900">Senin İçin Önerilenler</h2>
+              </div>
+              <Link href="/kesfet?sort=recommended" className="text-sm font-medium text-teal-600 hover:text-teal-700 flex items-center gap-1">
+                Tümü <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {recommendedNotes.map(note => (
+                <NoteCard key={`rec-${note.id}`} note={note} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Popular Notes */}
       {popularNotes.length > 0 && (
@@ -231,6 +336,38 @@ export default function HomePage() {
             {popularNotes.map(note => (
               <NoteCard key={note.id} note={note} />
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Active Requests */}
+      {recentRequests.length > 0 && (
+        <section className="bg-navy-50 border-t border-navy-100">
+          <div className="container-app py-10 sm:py-14">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-teal-600" />
+                <h2 className="text-xl sm:text-2xl font-bold text-navy-900">Güncel Not İstekleri</h2>
+              </div>
+              <Link href="/istekler" className="text-sm font-medium text-teal-600 hover:text-teal-700 flex items-center gap-1">
+                Tümüne Bak <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {recentRequests.map(req => (
+                <Link key={req.id} href="/istekler" className="card p-5 hover:border-teal-300 transition-colors bg-white">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-bold text-navy-900 text-lg">{req.title}</h3>
+                    <span className="badge badge-accent bg-accent-100 text-accent-700">{req.reward_points} Puan</span>
+                  </div>
+                  <p className="text-sm text-navy-600 line-clamp-2 mb-4">{req.description || 'Açıklama yok'}</p>
+                  <div className="flex items-center justify-between text-xs text-navy-500">
+                    <span>{req.user_display_name} tarafından istendi</span>
+                    <span>{new Date(req.created_at).toLocaleDateString()}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         </section>
       )}

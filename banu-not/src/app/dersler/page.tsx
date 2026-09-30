@@ -12,7 +12,7 @@ export default function CoursesPage() {
   useEffect(() => {
     async function loadCatalog() {
       try {
-        const res = await fetch('/api/admin?section=catalog');
+        const res = await fetch('/api/catalog');
         const json = await res.json();
         if (json.success) {
           setData(json.data);

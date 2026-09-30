@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
     const academicYear = formData.get('academicYear') as string;
     const topic = formData.get('topic') as string;
     const tagsStr = formData.get('tags') as string;
+    const requestId = formData.get('requestId') as string;
 
     // Validation
     if (!title || title.length < 3 || title.length > 200) {
@@ -117,6 +118,18 @@ export async function POST(request: NextRequest) {
           insertNoteTag.run(uuid(), noteId, tag.id);
         }
       });
+    }
+
+    // Fulfill note request if present
+    if (requestId) {
+      db.prepare(`
+        UPDATE note_requests 
+        SET status = 'fulfilled', 
+            fulfilled_by = ?, 
+            fulfilled_note_id = ?, 
+            fulfilled_at = datetime('now') 
+        WHERE id = ?
+      `).run(userId, noteId, requestId);
     }
 
     return successResponse({

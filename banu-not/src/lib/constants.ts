@@ -72,8 +72,16 @@ export function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
+export function parseDbDate(dateStr: string | Date): Date {
+  if (dateStr instanceof Date) return dateStr;
+  if (typeof dateStr === 'string' && !dateStr.includes('T')) {
+    return new Date(dateStr.replace(' ', 'T') + 'Z');
+  }
+  return new Date(dateStr);
+}
+
 export function formatDate(date: string | Date): string {
-  const d = new Date(date);
+  const d = parseDbDate(date);
   return d.toLocaleDateString('tr-TR', {
     year: 'numeric',
     month: 'long',
@@ -82,7 +90,7 @@ export function formatDate(date: string | Date): string {
 }
 
 export function formatDateShort(date: string | Date): string {
-  const d = new Date(date);
+  const d = parseDbDate(date);
   return d.toLocaleDateString('tr-TR', {
     year: 'numeric',
     month: 'short',
@@ -92,7 +100,7 @@ export function formatDateShort(date: string | Date): string {
 
 export function timeAgo(date: string | Date): string {
   const now = new Date();
-  const d = new Date(date);
+  const d = parseDbDate(date);
   const diff = now.getTime() - d.getTime();
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);

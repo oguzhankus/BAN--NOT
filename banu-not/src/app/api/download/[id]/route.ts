@@ -13,13 +13,9 @@ export async function GET(
     const db = await ensureDb();
     const { id } = await params;
 
-    // Check if login required for download
-    const requireLogin = db.prepare("SELECT value FROM site_settings WHERE key = 'require_login_download'").get() as any;
-    if (requireLogin?.value === 'true') {
-      const session = await getServerSession(authOptions);
-      if (!session?.user) {
-        return errorResponse('Dosya indirmek için giriş yapmalısınız.', 401);
-      }
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return errorResponse('Dosya indirmek için giriş yapmalısınız veya kayıt olmalısınız.', 401);
     }
 
     const noteFile = db.prepare(`

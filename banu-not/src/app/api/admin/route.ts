@@ -65,10 +65,11 @@ export async function GET(request: NextRequest) {
       case 'reports': {
         const status = searchParams.get('status') || 'pending';
         const reports = db.prepare(`
-          SELECT r.*, n.title as note_title, u.display_name as reporter_name
+          SELECT r.*, n.title as note_title, u.display_name as reporter_name, c.content as comment_content
           FROM reports r
-          JOIN notes n ON r.note_id = n.id
+          LEFT JOIN notes n ON r.note_id = n.id
           JOIN users u ON r.user_id = u.id
+          LEFT JOIN comments c ON r.target_type = 'comment' AND r.target_id = c.id
           WHERE r.status = ?
           ORDER BY r.created_at DESC
         `).all(status);
@@ -105,6 +106,16 @@ export async function GET(request: NextRequest) {
       case 'settings': {
         const settings = db.prepare('SELECT * FROM site_settings ORDER BY key').all();
         return successResponse(settings);
+      }
+
+      case 'requests': {
+        const requests = db.prepare(`
+          SELECT r.*, u.display_name as user_display_name
+          FROM note_requests r
+          LEFT JOIN users u ON r.user_id = u.id
+          ORDER BY r.created_at DESC
+        `).all();
+        return successResponse({ requests });
       }
 
       default:
@@ -160,10 +171,14 @@ export async function POST(request: NextRequest) {
           .run(resolution || null, admin.id, reportId);
 
         if (noteAction) {
-          const report = db.prepare('SELECT note_id FROM reports WHERE id = ?').get(reportId) as any;
+          const report = db.prepare('SELECT note_id, target_type, target_id FROM reports WHERE id = ?').get(reportId) as any;
           if (report) {
-            db.prepare(`UPDATE notes SET status = ?, updated_at = datetime('now') WHERE id = ?`)
-              .run(noteAction, report.note_id);
+            if (report.target_type === 'comment' && noteAction === 'removed') {
+              db.prepare('DELETE FROM comments WHERE id = ?').run(report.target_id);
+            } else if (report.note_id) {
+              db.prepare(`UPDATE notes SET status = ?, updated_at = datetime('now') WHERE id = ?`)
+                .run(noteAction, report.note_id);
+            }
           }
         }
 
@@ -190,6 +205,15 @@ export async function POST(request: NextRequest) {
         const { key, value } = body;
         db.prepare("UPDATE site_settings SET value = ?, updated_at = datetime('now') WHERE key = ?").run(value, key);
         return successResponse({ message: 'Ayar güncellendi.' });
+      }
+
+      case 'delete_request': {
+        const { requestId } = body;
+        if (!requestId) return errorResponse('İstek ID gerekli.');
+        db.prepare('DELETE FROM note_requests WHERE id = ?').run(requestId);
+        db.prepare('INSERT INTO audit_logs (id, user_id, action, target, target_id) VALUES (?, ?, ?, ?, ?)')
+          .run(uuid(), admin.id, 'request_deleted', 'note_request', requestId);
+        return successResponse({ message: 'İstek silindi.' });
       }
 
       case 'add_faculty': {

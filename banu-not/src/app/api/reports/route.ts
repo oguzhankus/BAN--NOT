@@ -11,16 +11,17 @@ export async function POST(request: NextRequest) {
 
     const db = await ensureDb();
     const userId = (session.user as any).id;
-    const { noteId, reason, details } = await request.json();
+    const { noteId, reason, details, targetType = 'note', targetId = noteId } = await request.json();
 
     if (!noteId) return errorResponse('Not ID gerekli.');
+    if (!targetId) return errorResponse('Hedef ID gerekli.');
     if (!reason) return errorResponse('Bildirim nedeninizi seçmelisiniz.');
 
-    const existing = db.prepare("SELECT id FROM reports WHERE user_id = ? AND note_id = ? AND status IN ('pending', 'reviewing')").get(userId, noteId);
-    if (existing) return errorResponse('Bu not için zaten bekleyen bir bildiriminiz var.');
+    const existing = db.prepare("SELECT id FROM reports WHERE user_id = ? AND target_id = ? AND status IN ('pending', 'reviewing')").get(userId, targetId);
+    if (existing) return errorResponse('Bunun için zaten bekleyen bir bildiriminiz var.');
 
-    db.prepare('INSERT INTO reports (id, note_id, user_id, reason, details) VALUES (?, ?, ?, ?, ?)').run(
-      uuid(), noteId, userId, reason, details?.trim() || null
+    db.prepare('INSERT INTO reports (id, note_id, target_type, target_id, user_id, reason, details) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+      uuid(), noteId, targetType, targetId, userId, reason, details?.trim() || null
     );
 
     return successResponse({ message: 'Bildiriminiz alındı. İncelenecektir.' }, 201);

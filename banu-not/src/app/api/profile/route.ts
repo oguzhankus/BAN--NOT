@@ -12,10 +12,15 @@ export async function GET() {
     const userId = (session.user as any).id;
 
     const user = db.prepare(`
-      SELECT id, email, display_name, first_name, last_name, bio, avatar_url,
-             university_id, faculty_id, department_id, class_year, role, 
-             profile_public, created_at
-      FROM users WHERE id = ?
+      SELECT u.id, u.email, u.display_name, u.first_name, u.last_name, u.bio, u.avatar_url,
+             u.university_id, u.faculty_id, u.department_id, u.class_year, u.role, 
+             u.profile_public, u.created_at,
+             f.name as faculty_name,
+             d.name as department_name
+      FROM users u
+      LEFT JOIN faculties f ON u.faculty_id = f.id
+      LEFT JOIN departments d ON u.department_id = d.id
+      WHERE u.id = ?
     `).get(userId);
 
     const notes = db.prepare(`
@@ -41,7 +46,26 @@ export async function GET() {
       ORDER BY n.created_at DESC
     `).all(userId);
 
-    return successResponse({ user, notes });
+    const stats = db.prepare(`
+      SELECT 
+        SUM(download_count) as total_downloads,
+        SUM(view_count) as total_views
+      FROM notes WHERE user_id = ?
+    `).get(userId) as any;
+
+    const bookmarkedCount = db.prepare(`
+      SELECT COUNT(*) as count FROM bookmarks WHERE user_id = ?
+    `).get(userId) as any;
+
+    return successResponse({ 
+      user, 
+      notes, 
+      stats: {
+        totalDownloads: stats?.total_downloads || 0,
+        totalViews: stats?.total_views || 0,
+        bookmarkedNotes: bookmarkedCount?.count || 0
+      }
+    });
   } catch (error) {
     console.error('Profile error:', error);
     return errorResponse('Profil yüklenirken hata oluştu.', 500);
@@ -55,7 +79,7 @@ export async function PUT(request: NextRequest) {
 
     const db = await ensureDb();
     const userId = (session.user as any).id;
-    const { displayName, bio } = await request.json();
+    const { displayName, bio, facultyId, departmentId, classYear } = await request.json();
 
     if (displayName && (displayName.length < 2 || displayName.length > 50)) {
       return errorResponse('Görünen ad 2-50 karakter arasında olmalıdır.');
@@ -65,9 +89,12 @@ export async function PUT(request: NextRequest) {
       UPDATE users SET 
         display_name = COALESCE(?, display_name),
         bio = ?,
+        faculty_id = ?,
+        department_id = ?,
+        class_year = ?,
         updated_at = datetime('now')
       WHERE id = ?
-    `).run(displayName?.trim() || null, bio?.trim() || null, userId);
+    `).run(displayName?.trim() || null, bio?.trim() || null, facultyId || null, departmentId || null, classYear || null, userId);
 
     return successResponse({ message: 'Profil güncellendi.' });
   } catch (error) {

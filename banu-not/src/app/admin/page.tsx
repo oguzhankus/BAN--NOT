@@ -5,12 +5,12 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
   Shield, Users, FileText, Flag, Settings, BarChart3,
-  Check, X, Eye, Ban, Plus, RefreshCw, BookOpen, ChevronDown
+  Check, X, Eye, Ban, Plus, RefreshCw, BookOpen, ChevronDown, MessageSquare
 } from 'lucide-react';
 import { getNoteTypeLabel, getReportReasonLabel, formatDate } from '@/lib/constants';
 import { useToast } from '@/components/Toast';
 
-type Tab = 'dashboard' | 'notes' | 'reports' | 'users' | 'catalog' | 'settings';
+type Tab = 'dashboard' | 'notes' | 'reports' | 'users' | 'catalog' | 'settings' | 'requests';
 
 export default function AdminPage() {
   const { data: session, status } = useSession();
@@ -73,6 +73,7 @@ export default function AdminPage() {
   const tabs: { key: Tab; label: string; icon: any }[] = [
     { key: 'dashboard', label: 'Panel', icon: BarChart3 },
     { key: 'notes', label: 'Notlar', icon: FileText },
+    { key: 'requests', label: 'İstekler', icon: MessageSquare },
     { key: 'reports', label: 'Raporlar', icon: Flag },
     { key: 'users', label: 'Kullanıcılar', icon: Users },
     { key: 'catalog', label: 'Katalog', icon: BookOpen },
@@ -207,8 +208,16 @@ export default function AdminPage() {
                     <div key={r.id} className="card p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <p className="font-medium text-navy-900">Not: {r.note_title}</p>
-                          <p className="text-sm text-navy-600 mt-1">
+                          {r.target_type === 'comment' ? (
+                            <>
+                              <p className="font-medium text-navy-900">Yorum Şikayeti</p>
+                              <p className="text-sm bg-navy-50 p-2 rounded mt-1 border border-navy-100">"{r.comment_content}"</p>
+                              <p className="text-xs text-navy-500 mt-1">Not: {r.note_title}</p>
+                            </>
+                          ) : (
+                            <p className="font-medium text-navy-900">Not: {r.note_title}</p>
+                          )}
+                          <p className="text-sm text-navy-600 mt-2">
                             <span className="badge badge-danger">{getReportReasonLabel(r.reason)}</span>
                           </p>
                           {r.details && <p className="text-sm text-navy-500 mt-1">{r.details}</p>}
@@ -217,7 +226,7 @@ export default function AdminPage() {
                         {r.status === 'pending' && (
                           <div className="flex gap-1 shrink-0">
                             <button onClick={() => adminAction('resolve_report', { reportId: r.id, noteAction: 'removed', resolution: 'İçerik kaldırıldı.' })}
-                              className="btn btn-sm btn-danger" title="Notu Kaldır">Kaldır</button>
+                              className="btn btn-sm btn-danger" title="İçeriği Kaldır">Kaldır</button>
                             <button onClick={() => adminAction('dismiss_report', { reportId: r.id })}
                               className="btn btn-sm btn-ghost" title="Reddet">Reddet</button>
                           </div>
@@ -228,6 +237,42 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <div className="empty-state"><Flag className="w-12 h-12" /><p className="text-navy-500 mt-2">Bu durumda rapor yok.</p></div>
+              )}
+            </div>
+          )}
+
+          {/* Requests */}
+          {tab === 'requests' && data && (
+            <div className="space-y-3">
+              <h3 className="font-semibold text-navy-900 mb-3">Tüm Not İstekleri</h3>
+              {data.requests?.map((req: any) => (
+                <div key={req.id} className="card p-4 flex flex-col sm:flex-row gap-4 justify-between items-start">
+                  <div>
+                    <h4 className="font-bold text-navy-900">{req.title}</h4>
+                    {req.description && <p className="text-sm text-navy-600 mt-1">{req.description}</p>}
+                    <p className="text-xs text-navy-400 mt-2">Açan: {req.user_display_name} • {formatDate(req.created_at)}</p>
+                    <div className="mt-2">
+                      <span className={`badge ${req.status === 'open' ? 'badge-warning' : 'badge-success'}`}>
+                        {req.status === 'open' ? 'Açık' : 'Bulundu'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => {
+                        if (confirm('İsteği silmek istediğinize emin misiniz?')) {
+                          adminAction('delete_request', { requestId: req.id });
+                        }
+                      }}
+                      className="btn btn-sm btn-danger"
+                    >
+                      <X className="w-4 h-4 mr-1" /> Sil
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {data.requests?.length === 0 && (
+                <div className="empty-state"><MessageSquare className="w-12 h-12" /><p className="text-navy-500 mt-2">Henüz not isteği yok.</p></div>
               )}
             </div>
           )}

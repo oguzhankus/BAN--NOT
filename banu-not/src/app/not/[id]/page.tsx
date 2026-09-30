@@ -5,12 +5,15 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Download, Bookmark, BookmarkCheck, Star, MessageSquare,
+  Download, Bookmark, BookmarkCheck, Heart, Star, MessageSquare,
   Flag, Share2, FileText, Calendar, User, Eye, ArrowLeft,
-  Send, AlertCircle, ChevronRight, Trash2, Edit
+  Send, AlertCircle, ChevronRight, Trash2, Edit, Sparkles
 } from 'lucide-react';
 import { getNoteTypeLabel, getSemesterLabel, formatFileSize, formatDate, timeAgo, REPORT_REASONS } from '@/lib/constants';
 import { useToast } from '@/components/Toast';
+import confetti from 'canvas-confetti';
+import NoteCard from '@/components/NoteCard';
+import AiAnalysis from '@/components/AiAnalysis';
 
 export default function NoteDetailPage() {
   const { id } = useParams();
@@ -26,9 +29,49 @@ export default function NoteDetailPage() {
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [replyTo, setReplyTo] = useState<any>(null);
+
+  const handleCommentLike = async (commentId: string) => {
+    if (!user) { showToast('Beğenmek için giriş yapmalısınız.', 'error'); return; }
+    try {
+      const res = await fetch('/api/comments/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commentId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNote((prev: any) => ({
+          ...prev,
+          comments: prev.comments.map((c: any) => 
+            c.id === commentId ? { ...c, user_liked: data.data.liked, like_count: c.like_count + (data.data.liked ? 1 : -1) } : c
+          )
+        }));
+      }
+    } catch (e) {}
+  };
+
+  const handleCommentDelete = async (commentId: string) => {
+    if (!confirm('Bu yorumu silmek istediğinize emin misiniz?')) return;
+    try {
+      const res = await fetch(`/api/comments?id=${commentId}`, { method: 'DELETE' });
+      if (res.ok) {
+        showToast('Yorum silindi.');
+        setNote((prev: any) => ({ ...prev, comments: prev.comments.filter((c: any) => c.id !== commentId) }));
+      }
+    } catch (e) {}
+  };
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
+  const [reportTargetId, setReportTargetId] = useState<string | null>(null);
+  const [reportTargetType, setReportTargetType] = useState<'note' | 'comment'>('note');
+  const [similarNotes, setSimilarNotes] = useState<any[]>([]);
+  
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [loadingAi, setLoadingAi] = useState(false);
+  const [showAi, setShowAi] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     loadNote();
@@ -42,6 +85,12 @@ export default function NoteDetailPage() {
         setNote(data.data);
         setBookmarked(data.data.userBookmarked);
         setUserRating(data.data.userRating);
+        
+        // Fetch similar notes
+        fetch(`/api/notes/${id}/similar`)
+          .then(r => r.json())
+          .then(d => { if (d.success) setSimilarNotes(d.data); })
+          .catch(() => {});
       } else {
         showToast(data.error, 'error');
       }
@@ -49,6 +98,22 @@ export default function NoteDetailPage() {
       showToast('Not yüklenirken bir hata oluştu.', 'error');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadAiAnalysis() {
+    if (aiAnalysis) return;
+    setLoadingAi(true);
+    try {
+      const res = await fetch(`/api/notes/${id}/ai-analysis`);
+      const data = await res.json();
+      if (data.success) {
+        setAiAnalysis(data.data);
+      }
+    } catch {
+      showToast('Yapay zeka analizi alınamadı.', 'error');
+    } finally {
+      setLoadingAi(false);
     }
   }
 
@@ -95,7 +160,7 @@ export default function NoteDetailPage() {
       const res = await fetch('/api/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ noteId: id, content: comment }),
+        body: JSON.stringify({ noteId: id, content: comment, parentId: replyTo?.id }),
       });
       const data = await res.json();
       if (data.success) {
@@ -116,7 +181,7 @@ export default function NoteDetailPage() {
       const res = await fetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ noteId: id, reason: reportReason, details: reportDetails }),
+        body: JSON.stringify({ noteId: id, targetId: reportTargetId || id, targetType: reportTargetType, reason: reportReason, details: reportDetails }),
       });
       const data = await res.json();
       if (data.success) {
@@ -202,11 +267,17 @@ export default function NoteDetailPage() {
         <h1 className="text-2xl sm:text-3xl font-bold text-navy-900 leading-tight">{note.title}</h1>
         
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-sm text-navy-500">
-          <span className="flex items-center gap-1.5">
+          <Link href={`/kullanici/${note.user_id}`} className="flex items-center gap-1.5 hover:text-teal-600 transition-colors">
             <User className="w-4 h-4" />
             {note.user_display_name}
-          </span>
-          <span className="flex items-center gap-1.5">
+          </Link>
+          {user && user.id !== note.user_id && (
+            <Link href={`/mesajlar?userId=${note.user_id}`} className="flex items-center gap-1 hover:text-teal-600 transition-colors bg-teal-50 px-2 py-0.5 rounded-full text-teal-700">
+              <MessageSquare className="w-3.5 h-3.5" />
+              Mesaj At
+            </Link>
+          )}
+          <span className="flex items-center gap-1.5 ml-2">
             <Calendar className="w-4 h-4" />
             {formatDate(note.created_at)}
           </span>
@@ -218,6 +289,10 @@ export default function NoteDetailPage() {
             <Eye className="w-4 h-4" />
             {note.view_count} görüntülenme
           </span>
+          <button onClick={() => document.getElementById('comments-section')?.scrollIntoView({ behavior: 'smooth' })} className="flex items-center gap-1.5 hover:text-teal-600 transition-colors">
+            <MessageSquare className="w-4 h-4" />
+            {note.comments?.length || 0} yorum
+          </button>
         </div>
       </div>
 
@@ -226,6 +301,63 @@ export default function NoteDetailPage() {
         <div className="card p-5 mb-6">
           <h2 className="font-semibold text-navy-800 mb-2">Açıklama</h2>
           <p className="text-navy-600 leading-relaxed whitespace-pre-line">{note.description}</p>
+        </div>
+      )}
+
+      {/* AI Analysis */}
+      <div className="card p-5 mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100 hover:shadow-md transition-shadow">
+        <div className="flex items-center justify-between cursor-pointer" onClick={() => {
+          setShowAi(!showAi);
+          if (!showAi) loadAiAnalysis();
+        }}>
+          <h2 className="font-semibold text-indigo-900 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-indigo-600" /> Yapay Zeka (AI) Not Analizi
+          </h2>
+          <ChevronRight className={`w-5 h-5 text-indigo-400 transition-transform ${showAi ? 'rotate-90' : ''}`} />
+        </div>
+        
+        {showAi && (
+          <div className="mt-4 pt-4 border-t border-indigo-100/50">
+            {loadingAi ? (
+              <div className="space-y-3">
+                <div className="skeleton h-4 w-full bg-indigo-200/50" />
+                <div className="skeleton h-4 w-5/6 bg-indigo-200/50" />
+                <div className="skeleton h-4 w-4/6 bg-indigo-200/50" />
+                <p className="text-xs text-indigo-500 animate-pulse mt-2">AI notu analiz ediyor, lütfen bekleyin...</p>
+              </div>
+            ) : aiAnalysis ? (
+              <AiAnalysis data={aiAnalysis} />
+            ) : (
+              <p className="text-sm text-red-500">Analiz yüklenemedi.</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Preview Section */}
+      {showPreview && (
+        <div className="card mb-6 overflow-hidden border-teal-200 shadow-lg">
+          <div className="bg-teal-50 px-4 py-3 border-b border-teal-100 flex justify-between items-center">
+            <h3 className="font-semibold text-teal-800 flex items-center gap-2">
+              <Eye className="w-4 h-4" /> Dosya Önizlemesi
+            </h3>
+            <button onClick={() => setShowPreview(false)} className="text-teal-600 hover:text-teal-800 text-sm font-medium">Kapat</button>
+          </div>
+          <div className="w-full bg-navy-900 rounded-b-xl relative flex items-center justify-center overflow-hidden" style={{ height: '70vh', minHeight: '500px' }}>
+            {note.files?.[0]?.mime_type?.startsWith('image/') ? (
+              <img 
+                src={`/api/preview/${id}`} 
+                alt="Dosya Önizleme" 
+                className="max-w-full max-h-full object-contain"
+              />
+            ) : (
+              <iframe 
+                src={`/api/preview/${id}`} 
+                className="w-full h-full border-0 rounded-b-xl bg-white"
+                title="Dosya Önizleme"
+              />
+            )}
+          </div>
         </div>
       )}
 
@@ -248,15 +380,37 @@ export default function NoteDetailPage() {
           
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <a
-              href={`/api/download/${id}`}
-              className="btn btn-primary flex-1 sm:flex-none"
-              download
+              href={user ? `/api/download/${id}` : '#'}
+              className="btn btn-primary flex-1 sm:flex-none relative overflow-hidden group"
+              {...(user ? { download: true } : {})}
+              onClick={(e) => {
+                if (!user) {
+                  e.preventDefault();
+                  showToast('Notları indirmek için giriş yapmalısınız veya kayıt olmalısınız.', 'error');
+                  return;
+                }
+                confetti({
+                  particleCount: 100,
+                  spread: 70,
+                  origin: { y: 0.6 },
+                  colors: ['#0f766e', '#1e293b', '#3b82f6', '#f59e0b']
+                });
+              }}
             >
-              <Download className="w-4 h-4" /> İndir
+              <Download className="w-4 h-4 group-hover:-translate-y-1 transition-transform" /> İndir
             </a>
-            <button onClick={handleBookmark} className="btn btn-secondary flex-1 sm:flex-none">
-              {bookmarked ? <BookmarkCheck className="w-4 h-4 text-teal-600" /> : <Bookmark className="w-4 h-4" />}
-              {bookmarked ? 'Kaydedildi' : 'Kaydet'}
+            <button
+              onClick={() => {
+                if (!user) { showToast('Önizleme için giriş yapmalısınız.', 'error'); return; }
+                setShowPreview(!showPreview);
+              }}
+              className={`btn flex-1 sm:flex-none transition-colors ${showPreview ? 'bg-teal-600 text-white hover:bg-teal-700' : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200'}`}
+            >
+              <Eye className="w-4 h-4" /> {showPreview ? 'Önizlemeyi Kapat' : 'Önizleme'}
+            </button>
+            <button onClick={handleBookmark} className={`btn flex-1 sm:flex-none ${bookmarked ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'btn-secondary'}`}>
+              <Heart className={`w-4 h-4 ${bookmarked ? 'fill-red-600 text-red-600' : ''}`} />
+              {bookmarked ? 'Beğenildi' : 'Beğen'}
             </button>
             <button onClick={handleShare} className="btn btn-ghost">
               <Share2 className="w-4 h-4" />
@@ -324,7 +478,7 @@ export default function NoteDetailPage() {
       </div>
 
       {/* Comments */}
-      <div className="card p-5 mb-6">
+      <div id="comments-section" className="card p-5 mb-6">
         <h2 className="font-semibold text-navy-800 mb-4 flex items-center gap-2">
           <MessageSquare className="w-5 h-5" />
           Yorumlar ({note.comments?.length || 0})
@@ -332,17 +486,23 @@ export default function NoteDetailPage() {
 
         {user && (
           <form onSubmit={handleComment} className="mb-6">
+            {replyTo && (
+              <div className="flex justify-between items-center bg-teal-50 text-teal-800 p-2 px-3 rounded-t-lg border-b border-teal-100 text-sm">
+                <span><strong>{replyTo.user_display_name}</strong> adlı kullanıcıya yanıt veriyorsunuz:</span>
+                <button type="button" onClick={() => setReplyTo(null)} className="text-teal-600 hover:text-teal-900">İptal</button>
+              </div>
+            )}
             <div className="flex gap-2">
               <input
                 type="text"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="Yorumunuzu yazın..."
-                className="input flex-1"
+                placeholder={replyTo ? "Yanıtınızı yazın..." : "Yorumunuzu yazın..."}
+                className={`input flex-1 ${replyTo ? 'rounded-t-none border-t-0 focus:ring-0' : ''}`}
                 maxLength={1000}
                 aria-label="Yorum yaz"
               />
-              <button type="submit" disabled={submittingComment || !comment.trim()} className="btn btn-primary">
+              <button type="submit" disabled={submittingComment || !comment.trim()} className={`btn btn-primary ${replyTo ? 'rounded-tl-none' : ''}`}>
                 <Send className="w-4 h-4" />
               </button>
             </div>
@@ -351,20 +511,66 @@ export default function NoteDetailPage() {
 
         {note.comments?.length > 0 ? (
           <div className="space-y-4">
-            {note.comments.map((c: any) => (
-              <div key={c.id} className="flex gap-3">
-                <div className="w-8 h-8 bg-navy-100 rounded-full flex items-center justify-center shrink-0">
-                  <span className="text-xs font-semibold text-navy-600">
-                    {c.user_display_name?.charAt(0)?.toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-navy-800">{c.user_display_name}</span>
-                    <span className="text-xs text-navy-400">{timeAgo(c.created_at)}</span>
+            {note.comments.filter((c: any) => !c.parent_id).map((c: any) => (
+              <div key={c.id} className="flex flex-col gap-3">
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 bg-navy-100 rounded-full flex items-center justify-center shrink-0">
+                    <span className="text-xs font-semibold text-navy-600">
+                      {c.user_display_name?.charAt(0)?.toUpperCase()}
+                    </span>
                   </div>
-                  <p className="text-sm text-navy-600 mt-0.5">{c.content}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-navy-800">{c.user_display_name}</span>
+                      <span className="text-xs text-navy-400">{timeAgo(c.created_at)}</span>
+                    </div>
+                    <p className="text-sm text-navy-600 mt-0.5">{c.content}</p>
+                    <div className="flex items-center gap-3 mt-2 text-xs font-medium">
+                      <button onClick={() => handleCommentLike(c.id)} className={`flex items-center gap-1 ${c.user_liked ? 'text-teal-600' : 'text-navy-500 hover:text-navy-700'}`}>
+                        <Heart className={`w-3.5 h-3.5 ${c.user_liked ? 'fill-teal-600' : ''}`} /> {c.like_count || 0}
+                      </button>
+                      <button onClick={() => setReplyTo(c)} className="text-navy-500 hover:text-navy-700">Yanıtla</button>
+                      {(user?.id === c.user_id || isAdmin) && (
+                        <button onClick={() => handleCommentDelete(c.id)} className="text-red-500 hover:text-red-700">Sil</button>
+                      )}
+                      {user?.id !== c.user_id && (
+                        <button onClick={() => { setReportReason(''); setReportDetails(''); setReportTargetId(c.id); setReportTargetType('comment'); setShowReport(true); }} className="text-navy-400 hover:text-navy-600" title="Şikayet Et">
+                          <Flag className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
+
+                {/* Replies */}
+                {note.comments.filter((reply: any) => reply.parent_id === c.id).length > 0 && (
+                  <div className="pl-11 space-y-3 mt-1">
+                    {note.comments.filter((reply: any) => reply.parent_id === c.id).map((reply: any) => (
+                      <div key={reply.id} className="flex gap-3">
+                        <div className="w-6 h-6 bg-navy-50 rounded-full flex items-center justify-center shrink-0">
+                          <span className="text-[10px] font-semibold text-navy-500">
+                            {reply.user_display_name?.charAt(0)?.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-navy-800">{reply.user_display_name}</span>
+                            <span className="text-xs text-navy-400">{timeAgo(reply.created_at)}</span>
+                          </div>
+                          <p className="text-sm text-navy-600 mt-0.5">{reply.content}</p>
+                          <div className="flex items-center gap-3 mt-1.5 text-xs font-medium">
+                            <button onClick={() => handleCommentLike(reply.id)} className={`flex items-center gap-1 ${reply.user_liked ? 'text-teal-600' : 'text-navy-500 hover:text-navy-700'}`}>
+                              <Heart className={`w-3.5 h-3.5 ${reply.user_liked ? 'fill-teal-600' : ''}`} /> {reply.like_count || 0}
+                            </button>
+                            {(user?.id === reply.user_id || isAdmin) && (
+                              <button onClick={() => handleCommentDelete(reply.id)} className="text-red-500 hover:text-red-700">Sil</button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -381,7 +587,7 @@ export default function NoteDetailPage() {
           </button>
         )}
         {user && (
-          <button onClick={() => setShowReport(true)} className="btn btn-ghost btn-sm text-navy-500">
+          <button onClick={() => { setReportTargetId(id); setReportTargetType('note'); setShowReport(true); }} className="btn btn-ghost btn-sm text-navy-500">
             <Flag className="w-4 h-4" /> Bildir
           </button>
         )}
@@ -424,6 +630,19 @@ export default function NoteDetailPage() {
                 <button type="submit" className="btn btn-danger">Gönder</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Similar Notes */}
+      {similarNotes.length > 0 && (
+        <div className="mt-8 mb-6">
+          <h2 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
+            Benzer Notlar
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {similarNotes.map(sn => (
+              <NoteCard key={sn.id} note={sn} />
+            ))}
           </div>
         </div>
       )}

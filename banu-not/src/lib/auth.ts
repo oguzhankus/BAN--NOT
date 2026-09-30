@@ -1,10 +1,21 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import GoogleProvider from 'next-auth/providers/google';
 import { getDb } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 
 export const authOptions: NextAuthOptions = {
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      authorization: {
+        params: {
+          prompt: 'select_account',
+        },
+      },
+    }),
     CredentialsProvider({
       name: 'credentials',
       credentials: {
@@ -33,6 +44,10 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Hesabınız aktif değil.');
         }
 
+        if (!user.password_hash) {
+          throw new Error('Lütfen Google ile giriş yapın.');
+        }
+
         const isPasswordValid = await bcrypt.compare(credentials.password, user.password_hash);
 
         if (!isPasswordValid) {
@@ -50,17 +65,79 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
+    async signIn({ user, account, profile }) {
+      if (account?.provider === 'google') {
+        const email = (user.email || '').toLowerCase().trim();
+        const db = getDb();
+        const existingUser = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+        
+        if (!existingUser) {
+          // Yeni kayıtlarda uzantı kontrolü yap, ama eski (veritabanında olan) admin/kullanıcıların girişine izin ver.
+          if (!email.endsWith('@ogr.bandirma.edu.tr')) {
+            return '/giris?error=Sisteme sadece @ogr.bandirma.edu.tr uzantılı öğrenci e-postaları ile kayıt olunabilir.';
+          }
+          // Register new user via Google
+          db.prepare(`
+            INSERT INTO users (id, email, password_hash, display_name, avatar_url, university_id, role, is_active)
+            VALUES (?, ?, '', ?, ?, ?, 'user', 1)
+          `).run(
+            uuidv4(),
+            user.email,
+            user.name || 'Google User',
+            user.image || null,
+            null // Needs to select university later
+          );
+        } else if (existingUser.is_banned) {
+          return false;
+        }
+      }
+      return true;
+    },
+    async jwt({ token, user, account, trigger }) {
+      if (trigger === 'update' && token?.email) {
+        // Fetch latest profile when update() is called
+        const db = getDb();
+        const dbUser = db.prepare('SELECT id, role, university_id FROM users WHERE email = ?').get(token.email) as any;
+        if (dbUser) {
+          token.universityId = dbUser.university_id;
+        }
+      }
+
+      if (account?.provider === 'google' && user?.email) {
+        const db = getDb();
+        const dbUser = db.prepare('SELECT id, role, university_id FROM users WHERE email = ?').get(user.email) as any;
+        if (dbUser) {
+          token.id = dbUser.id;
+          token.role = dbUser.role;
+          token.universityId = dbUser.university_id;
+        }
+      } else if (user) {
         token.id = user.id;
         token.role = (user as any).role;
+        // Check for manual login user
+        const db = getDb();
+        const dbUser = db.prepare('SELECT university_id FROM users WHERE id = ?').get(user.id) as any;
+        if (dbUser) {
+          token.universityId = dbUser.university_id;
+        }
       }
+
+      // If token still doesn't have universityId, fetch it just in case
+      if (!token.universityId && token.email) {
+        const db = getDb();
+        const dbUser = db.prepare('SELECT university_id FROM users WHERE email = ?').get(token.email) as any;
+        if (dbUser) {
+          token.universityId = dbUser.university_id;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         (session.user as any).id = token.id;
         (session.user as any).role = token.role;
+        (session.user as any).universityId = token.universityId;
       }
       return session;
     },

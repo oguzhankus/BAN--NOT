@@ -2,18 +2,33 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { BookOpen, Mail, Lock, Eye, EyeOff, User, AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ displayName: '', email: '', password: '', passwordConfirm: '', universityId: '' });
+  const { data: session, status } = useSession();
+  const [form, setForm] = useState({ displayName: '', email: '', password: '', passwordConfirm: '', universityId: '', facultyId: '', departmentId: '', classYear: '' });
   const [universities, setUniversities] = useState<any[]>([]);
+  const [faculties, setFaculties] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      const user = session?.user as any;
+      if (!user?.universityId) {
+        router.push('/profil-tamamla');
+      } else {
+        router.push('/');
+      }
+    }
+  }, [status, session, router]);
 
   useEffect(() => {
     fetch('/api/categories?type=universities')
@@ -25,6 +40,28 @@ export default function RegisterPage() {
         }
       });
   }, []);
+
+  useEffect(() => {
+    if (form.universityId) {
+      fetch(`/api/categories?type=faculties&parentId=${form.universityId}`)
+        .then(r => r.json())
+        .then(d => { if (d.success) setFaculties(d.data); });
+    } else {
+      setFaculties([]);
+      setForm(f => ({ ...f, facultyId: '', departmentId: '' }));
+    }
+  }, [form.universityId]);
+
+  useEffect(() => {
+    if (form.facultyId) {
+      fetch(`/api/categories?type=departments&parentId=${form.facultyId}`)
+        .then(r => r.json())
+        .then(d => { if (d.success) setDepartments(d.data); });
+    } else {
+      setDepartments([]);
+      setForm(f => ({ ...f, departmentId: '' }));
+    }
+  }, [form.facultyId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,11 +153,12 @@ export default function RegisterPage() {
                   value={form.email}
                   onChange={(e) => updateForm('email', e.target.value)}
                   className="input pl-10"
-                  placeholder="ornek@mail.com"
+                  placeholder="isim@ogr.banu.edu.tr"
                   required
                   autoComplete="email"
                 />
               </div>
+              <p className="text-xs text-teal-600 mt-1.5 font-medium">Sadece @ogr.bandirma.edu.tr uzantılı öğrenci e-postaları geçerlidir.</p>
             </div>
 
             <div>
@@ -137,6 +175,61 @@ export default function RegisterPage() {
                 ))}
               </select>
             </div>
+
+            {form.universityId && faculties.length > 0 && (
+              <div>
+                <label htmlFor="faculty" className="label">Fakülte</label>
+                <select
+                  id="faculty"
+                  value={form.facultyId}
+                  onChange={(e) => updateForm('facultyId', e.target.value)}
+                  className="input"
+                >
+                  <option value="">Fakülte seçin (isteğe bağlı)</option>
+                  {faculties.map(f => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {form.facultyId && departments.length > 0 && (
+              <div>
+                <label htmlFor="department" className="label">Bölüm</label>
+                <select
+                  id="department"
+                  value={form.departmentId}
+                  onChange={(e) => updateForm('departmentId', e.target.value)}
+                  className="input"
+                >
+                  <option value="">Bölüm seçin (isteğe bağlı)</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {form.departmentId && (
+              <div>
+                <label htmlFor="classYear" className="label">Sınıf</label>
+                <select
+                  id="classYear"
+                  value={form.classYear}
+                  onChange={(e) => updateForm('classYear', e.target.value)}
+                  className="input"
+                >
+                  <option value="">Sınıf seçin (isteğe bağlı)</option>
+                  <option value="1">1. Sınıf</option>
+                  <option value="2">2. Sınıf</option>
+                  <option value="3">3. Sınıf</option>
+                  <option value="4">4. Sınıf</option>
+                  <option value="5">5. Sınıf</option>
+                  <option value="6">6. Sınıf</option>
+                  <option value="Hazırlık">Hazırlık</option>
+                </select>
+              </div>
+            )}
 
             <div>
               <label htmlFor="password" className="label">Şifre</label>

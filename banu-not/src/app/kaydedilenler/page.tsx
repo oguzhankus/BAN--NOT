@@ -19,7 +19,7 @@ export default function SavedNotesPage() {
 
   async function loadSaved() {
     try {
-      const res = await fetch('/api/bookmarks/list');
+      const res = await fetch('/api/bookmarks');
       const data = await res.json();
       if (data.success) setNotes(data.data);
     } catch {} finally { setLoading(false); }

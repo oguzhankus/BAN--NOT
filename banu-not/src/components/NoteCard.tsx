@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import {
-  FileText, Download, Bookmark, Star, Eye,
+  FileText, Download, Heart, Star, Eye,
   Calendar, User as UserIcon, MessageSquare, Presentation, Image, File
 } from 'lucide-react';
 import { getNoteTypeLabel, formatFileSize, timeAgo } from '@/lib/constants';
@@ -117,10 +117,18 @@ export default function NoteCard({ note, compact = false }: NoteCardProps) {
 
             {/* Meta info */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-xs text-navy-500">
-              <span className="flex items-center gap-1">
+              <Link 
+                href={note.user_id ? `/kullanici/${note.user_id}` : '#'} 
+                className="flex items-center gap-1 hover:text-teal-600 transition-colors z-10 relative"
+                onClick={(e) => {
+                  if (!note.user_id) e.preventDefault();
+                  // Link handles navigation, but we want to prevent the card's outer Link from triggering
+                  e.stopPropagation();
+                }}
+              >
                 <UserIcon className="w-3.5 h-3.5" />
                 {note.user_display_name || 'Anonim'}
-              </span>
+              </Link>
               <span className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" />
                 {timeAgo(note.created_at)}
@@ -129,6 +137,12 @@ export default function NoteCard({ note, compact = false }: NoteCardProps) {
                 <Download className="w-3.5 h-3.5" />
                 {note.download_count}
               </span>
+              {(note.bookmark_count ?? 0) > 0 && (
+                <span className="flex items-center gap-1 text-red-500">
+                  <Heart className="w-3.5 h-3.5 fill-red-500" />
+                  {note.bookmark_count}
+                </span>
+              )}
               {(note.comment_count ?? 0) > 0 && (
                 <span className="flex items-center gap-1">
                   <MessageSquare className="w-3.5 h-3.5" />

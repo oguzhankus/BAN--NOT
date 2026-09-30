@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureDb, successResponse, errorResponse } from '@/lib/api-utils';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,7 +31,19 @@ export async function GET(request: NextRequest) {
         n.course_code LIKE ? COLLATE NOCASE OR
         c.name LIKE ? COLLATE NOCASE
       )`;
-      const searchTerm = `%${q}%`;
+      
+      // SQLite COLLATE NOCASE does not support Turkish characters like ı, İ, ş, vb.
+      // A great workaround is to replace these characters in the search term with the SQL '_' wildcard.
+      // It will match any single character, making it effectively case-insensitive for those letters!
+      const wildcardSearch = q
+        .replace(/[ıiİI]/g, '_')
+        .replace(/[şŞsS]/g, '_') // include s just in case
+        .replace(/[ğĞgG]/g, '_')
+        .replace(/[üÜuU]/g, '_')
+        .replace(/[öÖoO]/g, '_')
+        .replace(/[çÇcC]/g, '_');
+        
+      const searchTerm = `%${wildcardSearch}%`;
       params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
     }
 
@@ -62,6 +76,36 @@ export async function GET(request: NextRequest) {
     if (sort === 'popular') orderBy = 'ORDER BY n.download_count DESC';
     if (sort === 'rating') orderBy = 'ORDER BY avg_rating DESC';
     if (sort === 'oldest') orderBy = 'ORDER BY n.created_at ASC';
+    
+    // Sizin İçin (Personalized Feed)
+    if (sort === 'recommended') {
+      const session = await getServerSession(authOptions);
+      if (session?.user) {
+        const userId = (session.user as any).id;
+        const dbUser = db.prepare('SELECT department_id FROM users WHERE id = ?').get(userId) as any;
+        if (dbUser?.department_id) {
+          whereClause += ' AND n.department_id = ?';
+          params.push(dbUser.department_id);
+        } else {
+          // If user hasn't set a department, at least match their university
+          const uniId = (session.user as any).universityId;
+          if (uniId) {
+            whereClause += ' AND n.university_id = ?';
+            params.push(uniId);
+          }
+        }
+      }
+    }
+    
+    // Takip Ettiğim Dersler
+    if (sort === 'followed_courses') {
+      const session = await getServerSession(authOptions);
+      if (session?.user) {
+        const userId = (session.user as any).id;
+        whereClause += ' AND n.course_id IN (SELECT course_id FROM user_courses WHERE user_id = ?)';
+        params.push(userId);
+      }
+    }
 
     // Count total
     const countQuery = `

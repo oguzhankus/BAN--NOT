@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     const db = await ensureDb();
     const body = await request.json();
-    const { email, password, passwordConfirm, displayName, universityId, facultyId, departmentId } = body;
+    const { email, password, passwordConfirm, displayName, universityId, facultyId, departmentId, classYear } = body;
 
     // Validation
     if (!email || !password || !displayName) {
@@ -27,6 +27,11 @@ export async function POST(request: NextRequest) {
       return errorResponse('Geçerli bir e-posta adresi girin.');
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+    if (!normalizedEmail.endsWith('@ogr.bandirma.edu.tr')) {
+      return errorResponse('Sadece @ogr.bandirma.edu.tr uzantılı öğrenci e-postası ile kayıt olabilirsiniz.');
+    }
+
     if (displayName.length < 2 || displayName.length > 50) {
       return errorResponse('Görünen ad 2-50 karakter arasında olmalıdır.');
     }
@@ -42,9 +47,9 @@ export async function POST(request: NextRequest) {
     const passwordHash = await bcrypt.hash(password, 12);
 
     db.prepare(`
-      INSERT INTO users (id, email, password_hash, display_name, university_id, faculty_id, department_id, is_email_verified)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-    `).run(id, email.toLowerCase().trim(), passwordHash, displayName.trim(), universityId || null, facultyId || null, departmentId || null);
+      INSERT INTO users (id, email, password_hash, display_name, university_id, faculty_id, department_id, class_year, is_email_verified)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `).run(id, normalizedEmail, passwordHash, displayName.trim(), universityId || null, facultyId || null, departmentId || null, classYear || null);
 
     return successResponse({ message: 'Hesabınız başarıyla oluşturuldu. Giriş yapabilirsiniz.' }, 201);
   } catch (error) {

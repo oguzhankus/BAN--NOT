@@ -15,6 +15,7 @@ function ExploreContent() {
 
   const [notes, setNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [trackedCourses, setTrackedCourses] = useState<string[]>([]);
   const [totalResults, setTotalResults] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -46,7 +47,13 @@ function ExploreContent() {
           }
         }
       });
-  }, []);
+      
+    if (session?.user) {
+      fetch('/api/profile/courses')
+        .then(r => r.json())
+        .then(d => { if (d.success) setTrackedCourses(d.data.map((c: any) => c.id)); });
+    }
+  }, [session]);
 
   // Load faculties when university changes
   useEffect(() => {
@@ -137,6 +144,37 @@ function ExploreContent() {
   };
 
   const hasActiveFilters = selectedFaculty || selectedDept || selectedCourse || selectedType || selectedSemester;
+
+  const toggleTrackCourse = async () => {
+    if (!session) {
+      toast.error('Ders takip etmek için giriş yapmalısınız.');
+      return;
+    }
+    const isTracking = trackedCourses.includes(selectedCourse);
+    const prev = [...trackedCourses];
+    if (isTracking) {
+      setTrackedCourses(prev.filter(id => id !== selectedCourse));
+    } else {
+      setTrackedCourses([...prev, selectedCourse]);
+    }
+    
+    try {
+      if (isTracking) {
+        await fetch(`/api/profile/courses?courseId=${selectedCourse}`, { method: 'DELETE' });
+        toast.success('Ders takipten çıkarıldı.');
+      } else {
+        await fetch('/api/profile/courses', { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ courseId: selectedCourse })
+        });
+        toast.success('Ders takip ediliyor! Yeni notlarda bildirim alacaksınız.');
+      }
+    } catch (e) {
+      setTrackedCourses(prev);
+      toast.error('İşlem başarısız oldu.');
+    }
+  };
 
   return (
     <div className="container-app py-6 sm:py-8">
@@ -313,30 +351,40 @@ function ExploreContent() {
           </div>
 
           {/* Active filter chips */}
-          {hasActiveFilters && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              {selectedFaculty && (
-                <button onClick={() => setSelectedFaculty('')} className="badge badge-teal flex items-center gap-1 cursor-pointer hover:opacity-80">
-                  {faculties.find(f => f.id === selectedFaculty)?.short_name || 'Fakülte'} <X className="w-3 h-3" />
-                </button>
-              )}
-              {selectedDept && (
-                <button onClick={() => setSelectedDept('')} className="badge badge-teal flex items-center gap-1 cursor-pointer hover:opacity-80">
-                  {departments.find(d => d.id === selectedDept)?.name || 'Bölüm'} <X className="w-3 h-3" />
-                </button>
-              )}
-              {selectedCourse && (
-                <button onClick={() => setSelectedCourse('')} className="badge badge-teal flex items-center gap-1 cursor-pointer hover:opacity-80">
-                  {courses.find(c => c.id === selectedCourse)?.name || 'Ders'} <X className="w-3 h-3" />
-                </button>
-              )}
-              {selectedType && (
-                <button onClick={() => setSelectedType('')} className="badge badge-navy flex items-center gap-1 cursor-pointer hover:opacity-80">
-                  {NOTE_TYPES.find(t => t.value === selectedType)?.label} <X className="w-3 h-3" />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <div className="flex flex-wrap gap-2">
+                {selectedFaculty && (
+                  <button onClick={() => setSelectedFaculty('')} className="badge badge-teal flex items-center gap-1 cursor-pointer hover:opacity-80">
+                    {faculties.find(f => f.id === selectedFaculty)?.short_name || 'Fakülte'} <X className="w-3 h-3" />
+                  </button>
+                )}
+                {selectedDept && (
+                  <button onClick={() => setSelectedDept('')} className="badge badge-teal flex items-center gap-1 cursor-pointer hover:opacity-80">
+                    {departments.find(d => d.id === selectedDept)?.name || 'Bölüm'} <X className="w-3 h-3" />
+                  </button>
+                )}
+                {selectedCourse && (
+                  <button onClick={() => setSelectedCourse('')} className="badge badge-teal flex items-center gap-1 cursor-pointer hover:opacity-80">
+                    {courses.find(c => c.id === selectedCourse)?.name || 'Ders'} <X className="w-3 h-3" />
+                  </button>
+                )}
+                {selectedType && (
+                  <button onClick={() => setSelectedType('')} className="badge badge-navy flex items-center gap-1 cursor-pointer hover:opacity-80">
+                    {NOTE_TYPES.find(t => t.value === selectedType)?.label} <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+              
+              {selectedCourse && session && (
+                <button 
+                  onClick={toggleTrackCourse}
+                  className={`btn btn-sm shrink-0 ${trackedCourses.includes(selectedCourse) ? 'bg-navy-100 text-navy-700 hover:bg-navy-200' : 'btn-teal'}`}
+                >
+                  <BookOpen className="w-4 h-4" /> 
+                  {trackedCourses.includes(selectedCourse) ? 'Takipten Çık' : 'Dersi Takip Et'}
                 </button>
               )}
             </div>
-          )}
 
           {/* Notes grid */}
           {loading ? (

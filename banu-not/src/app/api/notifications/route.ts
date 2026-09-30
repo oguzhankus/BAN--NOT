@@ -18,7 +18,17 @@ export async function GET() {
       LIMIT 50
     `).all(userId);
 
-    return successResponse(notifications);
+    const unreadMessagesCount = db.prepare(`
+      SELECT COUNT(*) as count FROM messages 
+      WHERE conversation_id IN (
+        SELECT id FROM conversations WHERE user1_id = ? OR user2_id = ?
+      ) AND sender_id != ? AND is_read = 0
+    `).get(userId, userId, userId) as any;
+
+    return successResponse({
+      items: notifications,
+      unreadMessagesCount: unreadMessagesCount?.count || 0
+    });
   } catch (error) {
     console.error('Notifications error:', error);
     return errorResponse('Bildirimler yüklenirken hata oluştu.', 500);

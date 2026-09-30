@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Upload, FileText, ArrowLeft, ArrowRight, Check,
@@ -16,6 +16,8 @@ const STEPS = ['Dosya', 'Bilgiler', 'Kategori', 'Detaylar', 'Önizleme'];
 export default function UploadPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestId = searchParams.get('requestId');
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -133,6 +135,9 @@ export default function UploadPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      if (requestId) {
+        formData.append('requestId', requestId);
+      }
       Object.entries(form).forEach(([key, value]) => {
         if (value) formData.append(key === 'noteType' ? 'noteType' : key, value);
       });

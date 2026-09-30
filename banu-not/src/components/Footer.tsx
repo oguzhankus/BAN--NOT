@@ -1,7 +1,16 @@
+'use client';
+
 import Link from 'next/link';
 import { BookOpen, Mail } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 
 export default function Footer() {
+  const pathname = usePathname();
+  
+  if (pathname === '/mesajlar') {
+    return null;
+  }
+
   return (
     <footer className="bg-navy-900 text-navy-300 mt-auto">
       <div className="container-app py-12">
@@ -28,6 +37,7 @@ export default function Footer() {
             <ul className="space-y-2.5">
               <li><Link href="/kesfet" className="text-sm hover:text-teal-400 transition-colors">Keşfet</Link></li>
               <li><Link href="/dersler" className="text-sm hover:text-teal-400 transition-colors">Dersler</Link></li>
+              <li><Link href="/liderlik-tablosu" className="text-sm hover:text-teal-400 transition-colors">Liderlik Tablosu</Link></li>
               <li><Link href="/nasil-calisir" className="text-sm hover:text-teal-400 transition-colors">Nasıl Çalışır</Link></li>
               <li><Link href="/yukle" className="text-sm hover:text-teal-400 transition-colors">Not Paylaş</Link></li>
             </ul>

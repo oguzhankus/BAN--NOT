@@ -111,6 +111,16 @@ function initializeDatabase(db: Database.Database) {
       UNIQUE(course_id, department_id)
     );
 
+    CREATE TABLE IF NOT EXISTS user_courses (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      course_id TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+      UNIQUE(user_id, course_id)
+    );
+
     CREATE TABLE IF NOT EXISTS notes (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
@@ -193,17 +203,31 @@ function initializeDatabase(db: Database.Database) {
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       note_id TEXT NOT NULL,
+      parent_id TEXT,
       content TEXT NOT NULL,
       is_hidden INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+      FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS comment_likes (
+      id TEXT PRIMARY KEY,
+      comment_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(comment_id, user_id)
     );
 
     CREATE TABLE IF NOT EXISTS reports (
       id TEXT PRIMARY KEY,
-      note_id TEXT NOT NULL,
+      note_id TEXT,
+      target_type TEXT DEFAULT 'note' CHECK(target_type IN ('note', 'comment', 'user')),
+      target_id TEXT NOT NULL,
       user_id TEXT NOT NULL,
       reason TEXT NOT NULL,
       details TEXT,
@@ -240,6 +264,46 @@ function initializeDatabase(db: Database.Database) {
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
+    CREATE TABLE IF NOT EXISTS conversations (
+      id TEXT PRIMARY KEY,
+      user1_id TEXT NOT NULL,
+      user2_id TEXT NOT NULL,
+      last_message_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user1_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (user2_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(user1_id, user2_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS messages (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      sender_id TEXT NOT NULL,
+      content TEXT NOT NULL,
+      is_read INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS note_requests (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      course_id TEXT,
+      faculty_id TEXT,
+      department_id TEXT,
+      university_id TEXT,
+      status TEXT DEFAULT 'open' CHECK(status IN ('open', 'fulfilled', 'closed')),
+      fulfilled_by TEXT,
+      fulfilled_note_id TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (fulfilled_by) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (fulfilled_note_id) REFERENCES notes(id) ON DELETE SET NULL
+    );
+
     CREATE TABLE IF NOT EXISTS site_settings (
       id TEXT PRIMARY KEY,
       key TEXT UNIQUE NOT NULL,
@@ -248,6 +312,61 @@ function initializeDatabase(db: Database.Database) {
       label TEXT,
       description TEXT,
       updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS note_ai_analysis (
+      id TEXT PRIMARY KEY,
+      note_id TEXT UNIQUE NOT NULL,
+      summary TEXT,
+      key_concepts TEXT,
+      potential_questions TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS forum_posts (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      course_id TEXT,
+      faculty_id TEXT,
+      department_id TEXT,
+      view_count INTEGER DEFAULT 0,
+      upvotes INTEGER DEFAULT 0,
+      downvotes INTEGER DEFAULT 0,
+      is_resolved INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL,
+      FOREIGN KEY (faculty_id) REFERENCES faculties(id) ON DELETE SET NULL,
+      FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS forum_replies (
+      id TEXT PRIMARY KEY,
+      post_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      content TEXT NOT NULL,
+      is_accepted INTEGER DEFAULT 0,
+      upvotes INTEGER DEFAULT 0,
+      downvotes INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (post_id) REFERENCES forum_posts(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS forum_votes (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      target_type TEXT NOT NULL CHECK(target_type IN ('post', 'reply')),
+      target_id TEXT NOT NULL,
+      vote_type INTEGER NOT NULL CHECK(vote_type IN (1, -1)),
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(user_id, target_type, target_id)
     );
 
     -- Indexes

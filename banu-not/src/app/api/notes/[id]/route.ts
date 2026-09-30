@@ -57,14 +57,20 @@ export async function GET(
       WHERE nt.note_id = ?
     `).all(id) as { name: string }[];
 
+    // Check user first
+    const session = await getServerSession(authOptions);
+    const userId = session?.user ? (session.user as any).id : null;
+
     // Get comments
     const comments = db.prepare(`
-      SELECT c.*, u.display_name as user_display_name, u.avatar_url as user_avatar
+      SELECT c.*, u.display_name as user_display_name, u.avatar_url as user_avatar,
+             (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.id) as like_count,
+             EXISTS (SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_id = ?) as user_liked
       FROM comments c
       JOIN users u ON c.user_id = u.id
       WHERE c.note_id = ? AND c.is_hidden = 0
-      ORDER BY c.created_at DESC
-    `).all(id);
+      ORDER BY c.created_at ASC
+    `).all(userId || '', id);
 
     // Increment view
     db.prepare('UPDATE notes SET view_count = view_count + 1 WHERE id = ?').run(id);
@@ -72,9 +78,7 @@ export async function GET(
     // Check user bookmark and rating
     let userBookmarked = false;
     let userRating = 0;
-    const session = await getServerSession(authOptions);
-    if (session?.user) {
-      const userId = (session.user as any).id;
+    if (userId) {
       const bm = db.prepare('SELECT id FROM bookmarks WHERE user_id = ? AND note_id = ?').get(userId, id);
       userBookmarked = !!bm;
       const rt = db.prepare('SELECT score FROM ratings WHERE user_id = ? AND note_id = ?').get(userId, id) as any;
