@@ -3,6 +3,9 @@ import { ensureDb, successResponse, errorResponse } from '@/lib/api-utils';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
+import { sendPushNotification } from '@/lib/push-notifications';
+
+type SessionUser = { id: string };
 
 export async function GET(
   request: NextRequest,
@@ -37,7 +40,7 @@ export async function POST(
 
     const db = await ensureDb();
     const { id: noteId } = await params;
-    const userId = (session.user as any).id;
+    const userId = (session.user as SessionUser).id;
     const { content } = await request.json();
 
     if (!content || !content.trim()) {
@@ -51,9 +54,13 @@ export async function POST(
     `).run(commentId, userId, noteId, content.trim());
 
     // Send notification to note owner
-    const note = db.prepare('SELECT user_id, title FROM notes WHERE id = ?').get(noteId) as any;
+    const note = db.prepare('SELECT user_id, title FROM notes WHERE id = ?').get(noteId) as
+      | { user_id: string; title: string }
+      | undefined;
     if (note && note.user_id !== userId) {
-      const sender = db.prepare('SELECT display_name FROM users WHERE id = ?').get(userId) as any;
+      const sender = db.prepare('SELECT display_name FROM users WHERE id = ?').get(userId) as
+        | { display_name: string }
+        | undefined;
       db.prepare(`
         INSERT INTO notifications (id, user_id, type, title, message, link)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -65,6 +72,11 @@ export async function POST(
         `${sender?.display_name || 'Biri'} "${note.title}" notuna yorum yaptı.`, 
         `/not/${noteId}`
       );
+      await sendPushNotification(db, note.user_id, {
+        title: 'Yeni Yorum',
+        body: `${sender?.display_name || 'Biri'} "${note.title}" notuna yorum yaptı.`,
+        url: `/not/${noteId}`,
+      });
     }
 
     return successResponse({ id: commentId, content: content.trim() });

@@ -11,7 +11,7 @@ export async function GET(
     const userId = id;
 
     const user = db.prepare(`
-      SELECT id, display_name, avatar_url, bio, created_at, role
+      SELECT id, display_name, avatar_url, bio, created_at, role, is_email_verified
       FROM users 
       WHERE id = ? AND (profile_public = 1 OR profile_public IS NULL) AND is_banned = 0
     `).get(userId);
@@ -24,6 +24,7 @@ export async function GET(
     const notes = db.prepare(`
       SELECT n.*, 
         u.display_name as user_display_name,
+        u.is_email_verified as user_is_email_verified,
         f.name as faculty_name,
         d.name as department_name,
         c.name as course_name,

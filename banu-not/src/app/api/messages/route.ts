@@ -3,6 +3,9 @@ import { ensureDb, successResponse, errorResponse } from '@/lib/api-utils';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
+import { sendPushNotification } from '@/lib/push-notifications';
+
+type SessionUser = { id: string };
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,20 +13,22 @@ export async function GET(request: NextRequest) {
     if (!session?.user) return errorResponse('Giriş yapmalısınız.', 401);
     
     const db = await ensureDb();
-    const userId = (session.user as any).id;
+    const userId = (session.user as SessionUser).id;
     
     const { searchParams } = new URL(request.url);
     const otherUserId = searchParams.get('userId');
     
     if (otherUserId) {
-      const otherUser = db.prepare('SELECT id as other_user_id, display_name, avatar_url, last_seen FROM users WHERE id = ?').get(otherUserId) as any;
+      const otherUser = db.prepare('SELECT id as other_user_id, display_name, avatar_url, last_seen FROM users WHERE id = ?').get(otherUserId) as
+        | { other_user_id: string; display_name: string; avatar_url: string | null; last_seen: string | null }
+        | undefined;
       if (!otherUser) return errorResponse('Kullanıcı bulunamadı.', 404);
 
       // Get messages for a specific conversation
       const conv = db.prepare(`
         SELECT id FROM conversations 
         WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)
-      `).get(userId, otherUserId, otherUserId, userId) as any;
+      `).get(userId, otherUserId, otherUserId, userId) as { id: string } | undefined;
       
       if (!conv) return successResponse({ messages: [], otherUser });
       
@@ -65,7 +70,7 @@ export async function POST(request: NextRequest) {
     if (!session?.user) return errorResponse('Giriş yapmalısınız.', 401);
     
     const db = await ensureDb();
-    const userId = (session.user as any).id;
+    const userId = (session.user as SessionUser).id;
     const { receiverId, content } = await request.json();
     
     if (!receiverId || !content || !content.trim()) {
@@ -76,7 +81,7 @@ export async function POST(request: NextRequest) {
     let conv = db.prepare(`
       SELECT id FROM conversations 
       WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)
-    `).get(userId, receiverId, receiverId, userId) as any;
+    `).get(userId, receiverId, receiverId, userId) as { id: string } | undefined;
     
     if (!conv) {
       const convId = uuidv4();
@@ -95,11 +100,19 @@ export async function POST(request: NextRequest) {
       .run(conv.id);
       
     // Send notification to receiver
-    const sender = db.prepare('SELECT display_name FROM users WHERE id = ?').get(userId) as any;
+    const sender = db.prepare('SELECT display_name FROM users WHERE id = ?').get(userId) as
+      | { display_name: string }
+      | undefined;
     db.prepare(`
       INSERT INTO notifications (id, user_id, type, title, message, link)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(uuidv4(), receiverId, 'message', 'Yeni Mesaj', `${sender?.display_name || 'Biri'} sana mesaj gönderdi.`, '/mesajlar');
+
+    await sendPushNotification(db, receiverId, {
+      title: 'Yeni Mesaj',
+      body: `${sender?.display_name || 'Biri'} sana mesaj gönderdi.`,
+      url: '/mesajlar',
+    });
     
     return successResponse({ id: messageId, content: content.trim() });
   } catch (error) {

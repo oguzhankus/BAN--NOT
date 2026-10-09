@@ -8,6 +8,10 @@ import { ToastProvider } from '@/components/Toast';
 import { UNIVERSITY } from '@/lib/constants';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXTAUTH_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'),
+  ),
   title: 'BANÜ NOT — Ders Notları Paylaşım Platformu',
   description: `${UNIVERSITY.name} öğrencileri için ders notları paylaşım platformu. Notlarını paylaş, keşfet ve başarını artır.`,
   keywords: `ders notu, üniversite, ${UNIVERSITY.name}, ${UNIVERSITY.shortName}, not paylaşım, öğrenci`,

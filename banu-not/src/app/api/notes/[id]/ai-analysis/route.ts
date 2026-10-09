@@ -27,7 +27,12 @@ export async function GET(
       if (!note) return errorResponse('Not bulunamadı.', 404);
 
       // Try to find the PDF file for this note
-      const file = db.prepare('SELECT storage_path FROM note_files WHERE note_id = ? AND mime_type = ?').get(id, 'application/pdf') as any;
+      const file = db.prepare(`
+        SELECT storage_path FROM note_files
+        WHERE note_id = ? AND mime_type = 'application/pdf'
+        ORDER BY created_at DESC, rowid DESC
+        LIMIT 1
+      `).get(id) as any;
       
       let noteText = '';
       if (file && file.storage_path) {

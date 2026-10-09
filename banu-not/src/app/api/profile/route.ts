@@ -13,6 +13,7 @@ export async function GET() {
 
     const user = db.prepare(`
       SELECT u.id, u.email, u.display_name, u.first_name, u.last_name, u.bio, u.avatar_url,
+             u.is_email_verified,
              u.university_id, u.faculty_id, u.department_id, u.class_year, u.role, 
              u.profile_public, u.created_at,
              f.name as faculty_name,
@@ -26,6 +27,7 @@ export async function GET() {
     const notes = db.prepare(`
       SELECT n.*, 
         u.display_name as user_display_name,
+        u.is_email_verified as user_is_email_verified,
         f.name as faculty_name,
         d.name as department_name,
         c.name as course_name,

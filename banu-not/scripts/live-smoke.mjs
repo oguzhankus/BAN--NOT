@@ -73,17 +73,72 @@ async function runChecks(baseUrl) {
     return '';
   });
 
+  await assertResponse(baseUrl, '/api/notes?fileType=handwritten', ({ response, body }) => {
+    if (!response.ok || !body?.success || !Array.isArray(body.data?.notes)) {
+      return 'El yazısı dosya filtresi çalışmadı.';
+    }
+    return '';
+  });
+
+  await assertResponse(baseUrl, '/api/notes?minRating=6', ({ response, body }) => {
+    if (response.status !== 400 || body?.success !== false) return 'Geçersiz puan filtresi kabul edildi.';
+    return '';
+  });
+
+  const universities = await requestJson(baseUrl, '/api/categories?type=universities');
+  const university = universities.body?.data?.[0];
+  if (!universities.response.ok || !university) throw new Error('Ders sayfası smoke testi için üniversite bulunamadı.');
+  const faculties = await requestJson(baseUrl, `/api/categories?type=faculties&parentId=${encodeURIComponent(university.id)}`);
+  let course = null;
+  for (const faculty of faculties.body?.data || []) {
+    const departments = await requestJson(baseUrl, `/api/categories?type=departments&parentId=${encodeURIComponent(faculty.id)}`);
+    for (const department of departments.body?.data || []) {
+      const courses = await requestJson(baseUrl, `/api/categories?type=courses&parentId=${encodeURIComponent(department.id)}`);
+      course = courses.body?.data?.[0] || null;
+      if (course) break;
+    }
+    if (course) break;
+  }
+  if (!course) throw new Error('Ders sayfası smoke testi için katalogda ders bulunamadı.');
+  await assertResponse(baseUrl, `/api/courses/${encodeURIComponent(course.id)}`, ({ response, body }) => {
+    if (!response.ok || !body?.success || body.data?.course?.id !== course.id) return 'Ders özeti veya ders arşivi yüklenemedi.';
+    if (!Array.isArray(body.data?.bestNotes) || !Array.isArray(body.data?.examQuestions)) return 'Ders arşivi listeleri dönmedi.';
+    return '';
+  });
+  const coursePage = await fetch(new URL(`/dersler/${encodeURIComponent(course.id)}`, baseUrl), {
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!coursePage.ok) throw new Error(`Ders sayfası beklenmedik yanıt verdi (${coursePage.status}).`);
+  console.log(`PASS /dersler/${course.id} (${coursePage.status})`);
+
   await assertResponse(baseUrl, '/api/auth/providers', ({ response, body }) => {
     if (!response.ok || !body || typeof body !== 'object') return 'Kimlik doğrulama sağlayıcıları yüklenemedi.';
     return '';
   });
+
+  await assertResponse(baseUrl, '/api/collections', ({ response, body }) => {
+    if (response.status !== 401 || body?.success !== false) return 'Yetkisiz koleksiyon isteği engellenmedi.';
+    return '';
+  });
+
+  const invalidVerification = await fetch(new URL('/api/auth/verify-email', baseUrl), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: 'invalid' }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const invalidVerificationBody = await invalidVerification.json();
+  if (invalidVerification.status !== 400 || invalidVerificationBody?.success !== false) {
+    throw new Error('Geçersiz e-posta doğrulama tokenı reddedilmedi.');
+  }
+  console.log(`PASS /api/auth/verify-email invalid token (${invalidVerification.status})`);
 
   await assertResponse(baseUrl, '/api/admin?section=dashboard', ({ response, body }) => {
     if (response.status !== 403 || body?.success !== false) return 'Yetkisiz admin isteği engellenmedi.';
     return '';
   });
 
-  for (const route of ['/kesfet', '/admin']) {
+  for (const route of ['/kesfet', '/dersler', '/admin']) {
     const response = await fetch(new URL(route, baseUrl), { signal: AbortSignal.timeout(10_000) });
     if (!response.ok) throw new Error(`${route}: Sayfa ${response.status} yanıtı verdi.`);
     console.log(`PASS ${route} (${response.status})`);

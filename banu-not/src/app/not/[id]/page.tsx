@@ -6,13 +6,14 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Download, Heart, Star, MessageSquare, Flag, Share2, FileText,
-  Calendar, Eye, Send, ChevronRight, Trash2, Sparkles
+  Calendar, Eye, Send, ChevronRight, Trash2, Sparkles, BadgeCheck, History, Pencil, X, FileUp
 } from 'lucide-react';
 import { getNoteTypeLabel, getSemesterLabel, formatFileSize, formatDate, timeAgo, REPORT_REASONS } from '@/lib/constants';
 import { useToast } from '@/components/Toast';
 import confetti from 'canvas-confetti';
 import NoteCard from '@/components/NoteCard';
 import AiAnalysis from '@/components/AiAnalysis';
+import NoteChat from '@/components/NoteChat';
 
 export default function NoteDetailPage() {
   const params = useParams();
@@ -67,6 +68,13 @@ export default function NoteDetailPage() {
   const [reportTargetId, setReportTargetId] = useState<string | null>(null);
   const [reportTargetType, setReportTargetType] = useState<'note' | 'comment'>('note');
   const [similarNotes, setSimilarNotes] = useState<any[]>([]);
+  const [showEditNote, setShowEditNote] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editTopic, setEditTopic] = useState('');
+  const [replacementFile, setReplacementFile] = useState<File | null>(null);
+  const [savingNote, setSavingNote] = useState(false);
+  const [versions, setVersions] = useState<any[] | null>(null);
   
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [loadingAi, setLoadingAi] = useState(false);
@@ -83,6 +91,9 @@ export default function NoteDetailPage() {
       const data = await res.json();
       if (data.success) {
         setNote(data.data);
+        setEditTitle(data.data.title);
+        setEditDescription(data.data.description || '');
+        setEditTopic(data.data.topic || '');
         setBookmarked(data.data.userBookmarked);
         setUserRating(data.data.userRating);
         
@@ -98,6 +109,72 @@ export default function NoteDetailPage() {
       showToast('Not yüklenirken bir hata oluştu.', 'error');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function saveNoteChanges(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSavingNote(true);
+    try {
+      const response = await fetch(`/api/notes/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: editTitle, description: editDescription, topic: editTopic }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        showToast(result.error || 'Not güncellenemedi.', 'error');
+        return;
+      }
+      showToast(result.data.message);
+      setShowEditNote(false);
+      setVersions(null);
+      await loadNote();
+    } catch {
+      showToast('Not güncellenirken bağlantı hatası oluştu.', 'error');
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
+  async function loadVersions() {
+    if (versions) {
+      setVersions(null);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/notes/${id}/versions`);
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        showToast(result.error || 'Sürüm geçmişi yüklenemedi.', 'error');
+        return;
+      }
+      setVersions(result.data);
+    } catch {
+      showToast('Sürüm geçmişi yüklenirken bağlantı hatası oluştu.', 'error');
+    }
+  }
+
+  async function uploadReplacementFile() {
+    if (!replacementFile) return;
+    const formData = new FormData();
+    formData.set('file', replacementFile);
+    setSavingNote(true);
+    try {
+      const response = await fetch(`/api/notes/${id}/versions`, { method: 'POST', body: formData });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        showToast(result.error || 'Dosya güncellenemedi.', 'error');
+        return;
+      }
+      showToast(result.data.message);
+      setReplacementFile(null);
+      setVersions(null);
+      await loadNote();
+    } catch {
+      showToast('Dosya güncellenirken bağlantı hatası oluştu.', 'error');
+    } finally {
+      setSavingNote(false);
     }
   }
 
@@ -265,8 +342,20 @@ export default function NoteDetailPage() {
             <span className="badge badge-teal">{getNoteTypeLabel(note.note_type)}</span>
             {note.course_code && <span className="badge badge-navy">{note.course_code}</span>}
             {note.semester && <span className="badge badge-accent">{getSemesterLabel(note.semester)}</span>}
+            <span className="badge badge-navy">v{note.version_number || 1}</span>
           </div>
           <h1 className="max-w-4xl text-2xl font-bold leading-tight tracking-tight text-navy-900 sm:text-3xl lg:text-4xl">{note.title}</h1>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {(user?.id === note.user_id || user?.role === 'admin') && (
+              <button type="button" onClick={() => setShowEditNote(open => !open)} className="btn btn-secondary btn-sm">
+                {showEditNote ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+                {showEditNote ? 'Düzenlemeyi kapat' : 'Notu düzenle'}
+              </button>
+            )}
+            <button type="button" onClick={() => void loadVersions()} className="btn btn-secondary btn-sm">
+              <History className="h-4 w-4" /> {versions ? 'Sürüm geçmişini gizle' : 'Sürüm geçmişi'}
+            </button>
+          </div>
 
           <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3 text-sm text-navy-500">
             <Link href={`/kullanici/${note.user_id}`} className="inline-flex items-center gap-2 font-semibold text-navy-700 transition-colors hover:text-teal-700">
@@ -274,6 +363,9 @@ export default function NoteDetailPage() {
                 {(note.user_display_name || 'A').charAt(0).toUpperCase()}
               </span>
               {note.user_display_name || 'Anonim'}
+              {note.user_is_email_verified === 1 && (
+                <BadgeCheck className="ml-1 h-4 w-4 text-teal-600" aria-label="Üniversite e-postası doğrulanmış" />
+              )}
             </Link>
             {user && user.id !== note.user_id && (
               <Link href={`/mesajlar?userId=${note.user_id}`} className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800 transition-colors hover:bg-teal-100">
@@ -292,6 +384,57 @@ export default function NoteDetailPage() {
           </div>
         </div>
       </div>
+
+      {showEditNote && (
+        <form onSubmit={saveNoteChanges} className="card mb-6 space-y-4 p-5">
+          <h2 className="font-semibold text-navy-900">Not bilgilerini güncelle · yeni sürüm oluşturulur</h2>
+          <label className="block">
+            <span className="label">Başlık</span>
+            <input className="input w-full" value={editTitle} onChange={event => setEditTitle(event.target.value)} minLength={3} maxLength={200} required />
+          </label>
+          <label className="block">
+            <span className="label">Açıklama</span>
+            <textarea className="input min-h-28 w-full" value={editDescription} onChange={event => setEditDescription(event.target.value)} maxLength={5000} />
+          </label>
+          <label className="block">
+            <span className="label">Konu</span>
+            <input className="input w-full" value={editTopic} onChange={event => setEditTopic(event.target.value)} maxLength={200} />
+          </label>
+          <button type="submit" className="btn btn-teal" disabled={savingNote}>
+            {savingNote ? 'Kaydediliyor…' : 'Değişiklikleri kaydet'}
+          </button>
+          <div className="border-t border-navy-100 pt-4">
+            <label className="block">
+              <span className="label">Güncel dosya (PDF, DOCX, PPTX, JPG, PNG veya WebP)</span>
+              <input
+                className="input w-full"
+                type="file"
+                accept=".pdf,.docx,.pptx,.jpg,.jpeg,.png,.webp"
+                onChange={event => setReplacementFile(event.target.files?.[0] || null)}
+              />
+            </label>
+            <button type="button" onClick={() => void uploadReplacementFile()} className="btn btn-secondary mt-3" disabled={!replacementFile || savingNote}>
+              <FileUp className="h-4 w-4" /> Yeni dosyayı sürüm olarak yükle
+            </button>
+          </div>
+        </form>
+      )}
+
+      {versions && (
+        <section className="card mb-6 p-5">
+          <h2 className="font-semibold text-navy-900">Önceki sürümler</h2>
+          {versions.length ? (
+            <ol className="mt-3 space-y-3">
+              {versions.map(version => (
+                <li key={version.version} className="border-l-2 border-teal-200 pl-4">
+                  <p className="text-sm font-semibold text-navy-800">v{version.version} · {version.previous.title}</p>
+                  <p className="mt-1 text-xs text-navy-500">{version.changedBy} · {formatDate(version.changedAt)}</p>
+                </li>
+              ))}
+            </ol>
+          ) : <p className="mt-2 text-sm text-navy-500">Henüz önceki sürüm yok.</p>}
+        </section>
+      )}
 
       {/* Description */}
       {note.description && (
@@ -323,7 +466,10 @@ export default function NoteDetailPage() {
                 <p className="text-xs text-indigo-500 animate-pulse mt-2">AI notu analiz ediyor, lütfen bekleyin...</p>
               </div>
             ) : aiAnalysis ? (
-              <AiAnalysis data={aiAnalysis} />
+              <>
+                <AiAnalysis data={aiAnalysis} noteId={id} />
+                <NoteChat noteId={id} />
+              </>
             ) : (
               <p className="text-sm text-red-500">Analiz yüklenemedi.</p>
             )}

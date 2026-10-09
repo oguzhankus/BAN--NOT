@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { ensureDb, successResponse, errorResponse } from '@/lib/api-utils';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { v4 as uuid } from 'uuid';
+import { sendPushNotification } from '@/lib/push-notifications';
 
 export async function GET(
   request: NextRequest,
@@ -14,7 +16,9 @@ export async function GET(
     const note = db.prepare(`
       SELECT 
         n.*,
+        (SELECT COALESCE(MAX(version_number), 0) + 1 FROM note_versions WHERE note_id = n.id) as version_number,
         u.display_name as user_display_name,
+        u.is_email_verified as user_is_email_verified,
         u.avatar_url as user_avatar,
         uni.name as university_name,
         f.name as faculty_name,
@@ -48,7 +52,7 @@ export async function GET(
     }
 
     // Get files
-    const files = db.prepare('SELECT * FROM note_files WHERE note_id = ?').all(id);
+    const files = db.prepare('SELECT * FROM note_files WHERE note_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1').all(id);
 
     // Get tags
     const tags = db.prepare(`
@@ -121,21 +125,85 @@ export async function PUT(
       return errorResponse('Bu notu düzenleme yetkiniz yok.', 403);
     }
 
-    const { title, description, note_type, semester, academic_year, topic } = body;
+    const editableFields = ['title', 'description', 'note_type', 'semester', 'academic_year', 'topic'] as const;
+    const snapshot = {
+      title: note.title,
+      description: note.description,
+      note_type: note.note_type,
+      semester: note.semester,
+      academic_year: note.academic_year,
+      topic: note.topic,
+      files: db.prepare(`
+        SELECT original_name, mime_type, file_size, storage_path
+        FROM note_files
+        WHERE note_id = ?
+        ORDER BY created_at
+      `).all(id),
+    };
+    const updates = editableFields.filter(field => {
+      if (body[field] === undefined) return false;
+      const value = typeof body[field] === 'string' ? body[field].trim() || null : body[field];
+      return value !== (note[field] ?? null);
+    });
+    if (updates.length === 0) return errorResponse('Güncellenecek bir alan bulunamadı.');
 
-    db.prepare(`
-      UPDATE notes SET 
-        title = COALESCE(?, title),
-        description = COALESCE(?, description),
-        note_type = COALESCE(?, note_type),
-        semester = COALESCE(?, semester),
-        academic_year = COALESCE(?, academic_year),
-        topic = COALESCE(?, topic),
-        updated_at = datetime('now')
-      WHERE id = ?
-    `).run(title, description, note_type, semester, academic_year, topic, id);
+    for (const field of updates) {
+      const value = body[field];
+      if (value !== null && typeof value !== 'string') {
+        return errorResponse('Not alanlarının biçimi geçersiz.');
+      }
+      if (field === 'title' && (typeof value !== 'string' || value.trim().length < 3 || value.trim().length > 200)) {
+        return errorResponse('Başlık 3-200 karakter arasında olmalıdır.');
+      }
+      if (typeof value === 'string' && value.length > (field === 'description' ? 5000 : 200)) {
+        return errorResponse('Not alanı izin verilen uzunluğu aşıyor.');
+      }
+    }
 
-    return successResponse({ message: 'Not güncellendi.' });
+    const updateNote = db.transaction(() => {
+      const versionNumber = db.prepare(
+        'SELECT COALESCE(MAX(version_number), 0) + 1 as next_version FROM note_versions WHERE note_id = ?'
+      ).get(id) as { next_version: number };
+      db.prepare(`
+        INSERT INTO note_versions (id, note_id, version_number, snapshot_json, changed_by)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(uuid(), id, versionNumber.next_version, JSON.stringify(snapshot), userId);
+
+      const assignments = updates.map(field => `${field} = ?`).join(', ');
+      const values = updates.map(field => {
+        const value = body[field];
+        return typeof value === 'string' ? value.trim() || null : value;
+      });
+      db.prepare(`UPDATE notes SET ${assignments}, updated_at = datetime('now') WHERE id = ?`)
+        .run(...values, id);
+
+      const recipients = db.prepare(`
+        SELECT DISTINCT user_id
+        FROM note_downloads
+        WHERE note_id = ? AND user_id != ?
+      `).all(id, userId) as { user_id: string }[];
+      const insertNotification = db.prepare(`
+        INSERT INTO notifications (id, user_id, type, title, message, link)
+        VALUES (?, ?, 'note_updated', 'İndirdiğin not güncellendi', ?, ?)
+      `);
+      for (const recipient of recipients) {
+        insertNotification.run(
+          uuid(),
+          recipient.user_id,
+          `"${note.title}" notu v${versionNumber.next_version + 1} olarak güncellendi.`,
+          `/not/${id}`,
+        );
+      }
+      return { version: versionNumber.next_version + 1, recipients };
+    });
+
+    const { version: newVersion, recipients } = updateNote();
+    await Promise.all(recipients.map(recipient => sendPushNotification(db, recipient.user_id, {
+      title: 'İndirdiğin not güncellendi',
+      body: `"${note.title}" notu v${newVersion} olarak güncellendi.`,
+      url: `/not/${id}`,
+    })));
+    return successResponse({ message: `Not v${newVersion} olarak güncellendi.`, version: newVersion });
   } catch (error) {
     console.error('Note update error:', error);
     return errorResponse('Not güncellenirken bir hata oluştu.', 500);

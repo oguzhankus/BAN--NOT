@@ -23,6 +23,7 @@ export async function GET(
       SELECT nf.*, n.title, n.status FROM note_files nf
       JOIN notes n ON nf.note_id = n.id
       WHERE nf.note_id = ? AND n.status = 'published'
+      ORDER BY nf.created_at DESC, nf.rowid DESC
       LIMIT 1
     `).get(id) as any;
 

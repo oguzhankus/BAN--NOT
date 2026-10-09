@@ -41,14 +41,26 @@ Komut varsayılan SQLite dosyasını kullanır; farklı bir veritabanı seçtiys
 | --- | --- |
 | `NEXTAUTH_SECRET` | Oturum imzalama anahtarı; üretimde güçlü ve gizli bir değer kullanın. |
 | `NEXTAUTH_URL` | Uygulamanın kök adresi. |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | İsteğe bağlı web push bildirimleri. Push anahtarlarını bir kez üretip güvenli biçimde saklayın. |
 | `BANUNOT_DB_PATH` | Çalışma zamanındaki SQLite dosyası; varsayılan `./data/banunot.db`. |
 | `DATABASE_URL` | Prisma şemasının SQLite bağlantısı; şema `prisma/` altında olduğu için örnek yol `file:../data/banunot.db` şeklindedir. |
 | `UPLOAD_DIR` | Kullanıcı dosyalarının kalıcı olarak saklanacağı dizin. |
 | `MAX_FILE_SIZE_MB` | Yükleme boyutu sınırı. |
 | `GEMINI_API_KEY` | İsteğe bağlı yapay zekâ not analizi. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | İsteğe bağlı Google ile giriş. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Kayıt ve doğrulama e-postaları için SMTP. `SMTP_USER` ve `SMTP_PASS` birlikte verilmelidir. |
 
 Uygulamanın çalışma zamanı SQLite erişimi `BANUNOT_DB_PATH` kullanır. Prisma CLI kullanıldığında `.env` içindeki `DATABASE_URL` değerini aynı veritabanını gösterecek şekilde tutun.
+
+Web push anahtarlarını bir kez üretmek için proje dizininde şu komutu çalıştırın ve çıktıyı `.env` dosyasına aktarın:
+
+```powershell
+node -e "console.log(require('web-push').generateVAPIDKeys())"
+```
+
+Çıktıdaki `publicKey` değerini `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `privateKey` değerini yalnızca sunucuda tutulan `VAPID_PRIVATE_KEY` olarak kaydedin. `VAPID_SUBJECT` için uygulama sahibine ait erişilebilir bir `mailto:` adresi kullanın. Üretim ortamında `.env` dosyasını depoya eklemeyin; değişkenleri dağıtım sağlayıcısının gizli ortam değişkenleri bölümünde ayarlayın. Push bildirimleri HTTPS ve kullanıcı izni gerektirir. Manifest ve service worker yüklü uygulama/çevrimdışı kabuğu sağlar; API yanıtları ve yüklenen dosyalar çevrimdışı önbelleğe alınmaz.
+
+Yeni parola hesabı oluşturmak için SMTP değişkenlerini yapılandırın. Kayıttan sonra öğrenci adresine gönderilen bağlantı 24 saat geçerlidir; giriş için e-posta doğrulaması gerekir. E-postaya ulaşamayan kullanıcı `/dogrulama-e-postasi` sayfasından dakikada bir yeni bağlantı isteyebilir. Google ile girişte yalnızca üniversite öğrenci adresi ve Google tarafından doğrulanmış e-posta kabul edilir. Yerel SMTP ayarı yapılmadıysa kayıt endpoint'i e-posta gönderemediği için hesabı oluşturmadan `503` döndürür.
 
 ## Veritabanı ve seed
 

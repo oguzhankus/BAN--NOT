@@ -15,6 +15,16 @@ export async function GET(request: NextRequest) {
     const courseId = searchParams.get('course') || '';
     const noteType = searchParams.get('type') || '';
     const semester = searchParams.get('semester') || '';
+    const academicYear = searchParams.get('academicYear') || '';
+    const fileType = searchParams.get('fileType') || '';
+    const minRatingParam = searchParams.get('minRating') || '';
+    const minRating = Number(minRatingParam);
+    if (minRatingParam && (!Number.isFinite(minRating) || minRating < 1 || minRating > 5)) {
+      return errorResponse('Puan filtresi 1 ile 5 arasında olmalıdır.');
+    }
+    if (fileType && !['pdf', 'image', 'handwritten'].includes(fileType)) {
+      return errorResponse('Geçersiz dosya türü filtresi.');
+    }
     const sort = searchParams.get('sort') || 'newest';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '12'), 50);
@@ -71,6 +81,29 @@ export async function GET(request: NextRequest) {
       whereClause += ' AND n.semester = ?';
       params.push(semester);
     }
+    if (academicYear) {
+      whereClause += ' AND n.academic_year = ?';
+      params.push(academicYear);
+    }
+    if (fileType === 'pdf') {
+      whereClause += ` AND EXISTS (
+        SELECT 1 FROM note_files f WHERE f.id = (
+          SELECT id FROM note_files WHERE note_id = n.id ORDER BY created_at DESC, rowid DESC LIMIT 1
+        ) AND f.mime_type = 'application/pdf'
+      )`;
+    } else if (fileType === 'image') {
+      whereClause += ` AND EXISTS (
+        SELECT 1 FROM note_files f WHERE f.id = (
+          SELECT id FROM note_files WHERE note_id = n.id ORDER BY created_at DESC, rowid DESC LIMIT 1
+        ) AND f.mime_type LIKE 'image/%'
+      )`;
+    } else if (fileType === 'handwritten') {
+      whereClause += ' AND n.is_handwritten = 1';
+    }
+    if (Number.isFinite(minRating) && minRating >= 1 && minRating <= 5) {
+      whereClause += ' AND (SELECT AVG(score) FROM ratings WHERE note_id = n.id) >= ?';
+      params.push(minRating);
+    }
 
     let orderBy = 'ORDER BY n.created_at DESC';
     if (sort === 'popular') orderBy = 'ORDER BY n.download_count DESC';
@@ -120,6 +153,7 @@ export async function GET(request: NextRequest) {
       SELECT 
         n.*,
         u.display_name as user_display_name,
+        u.is_email_verified as user_is_email_verified,
         uni.name as university_name,
         f.name as faculty_name,
         d.name as department_name,
@@ -137,7 +171,14 @@ export async function GET(request: NextRequest) {
       LEFT JOIN faculties f ON n.faculty_id = f.id
       LEFT JOIN departments d ON n.department_id = d.id
       LEFT JOIN courses c ON n.course_id = c.id
-      LEFT JOIN note_files nf ON nf.note_id = n.id
+      LEFT JOIN note_files nf
+        ON nf.id = (
+          SELECT id FROM note_files
+          WHERE note_id = n.id
+          ORDER BY created_at DESC
+          , rowid DESC
+          LIMIT 1
+        )
       LEFT JOIN ratings r ON r.note_id = n.id
       LEFT JOIN comments cm ON cm.note_id = n.id AND cm.is_hidden = 0
       LEFT JOIN bookmarks bk ON bk.note_id = n.id

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles, Brain, CheckCircle2, ChevronRight, ChevronLeft, RefreshCw, Layers } from 'lucide-react';
 
 interface AiAnalysisProps {
+  noteId?: string;
   data: {
     summary: string;
     keyConcepts: string[];
@@ -13,12 +14,50 @@ interface AiAnalysisProps {
   };
 }
 
-export default function AiAnalysis({ data }: AiAnalysisProps) {
+export default function AiAnalysis({ data, noteId }: AiAnalysisProps) {
   const [tab, setTab] = useState<'summary' | 'flashcards' | 'quiz'>('summary');
   
   // Flashcard state
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [reviewDueAt, setReviewDueAt] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState('');
+
+  useEffect(() => {
+    if (!noteId) return;
+    let cancelled = false;
+    fetch(`/api/notes/${noteId}/flashcards`)
+      .then(response => response.json())
+      .then(result => {
+        if (cancelled || !result.success) return;
+        const review = (result.data as { card_index: number; next_review_at: string }[])
+          .find(item => item.card_index === flashcardIndex);
+        setReviewDueAt(review?.next_review_at || null);
+      })
+      .catch(error => console.error('Flashcard schedule load error:', error));
+    return () => { cancelled = true; };
+  }, [noteId, flashcardIndex]);
+
+  const submitReview = async (quality: number) => {
+    if (!noteId || reviewing) return;
+    setReviewing(true);
+    try {
+      const response = await fetch(`/api/notes/${noteId}/flashcards`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardIndex: flashcardIndex, quality }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Tekrar kaydedilemedi.');
+      setReviewDueAt(result.data.nextReviewAt);
+      setReviewMessage(`Sonraki tekrar: ${new Date(result.data.nextReviewAt).toLocaleDateString('tr-TR')}`);
+    } catch (error) {
+      setReviewMessage(error instanceof Error ? error.message : 'Tekrar kaydedilemedi.');
+    } finally {
+      setReviewing(false);
+    }
+  };
 
   // Quiz state
   const [quizAnswers, setQuizAnswers] = useState<Record<number, string>>({});
@@ -110,8 +149,23 @@ export default function AiAnalysis({ data }: AiAnalysisProps) {
         <div className="flex flex-col items-center animate-in fade-in duration-300 py-4">
           <div className="mb-4 text-sm font-medium text-indigo-600">
             Kart {flashcardIndex + 1} / {data.flashcards.length}
+            {reviewDueAt && <span className="ml-2 text-xs text-indigo-400">· tekrar {new Date(reviewDueAt).toLocaleDateString('tr-TR')}</span>}
           </div>
-          
+
+          {noteId && isFlipped && (
+            <div className="mt-5 text-center">
+              <p className="mb-2 text-xs font-medium text-indigo-500">Kartı ne kadar hatırladın?</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {[['Tekrar et', 0], ['Zor', 1], ['İyi', 2], ['Kolay', 3]].map(([label, quality]) => (
+                  <button key={label} type="button" disabled={reviewing} onClick={() => void submitReview(Number(quality))} className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-50 disabled:opacity-50">
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {reviewMessage && <p className="mt-2 text-xs text-indigo-600" role="status">{reviewMessage}</p>}
+            </div>
+          )}
+
           <div 
             className="relative w-full max-w-md aspect-[3/2] cursor-pointer group perspective-1000"
             onClick={() => setIsFlipped(!isFlipped)}

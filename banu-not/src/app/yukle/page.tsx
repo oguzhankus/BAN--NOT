@@ -38,6 +38,7 @@ function UploadPageContent() {
   });
   const [copyrightAgreed, setCopyrightAgreed] = useState(false);
   const [rulesAgreed, setRulesAgreed] = useState(false);
+  const [isHandwritten, setIsHandwritten] = useState(false);
 
   const [universities, setUniversities] = useState<any[]>([]);
   const [faculties, setFaculties] = useState<any[]>([]);
@@ -151,6 +152,7 @@ function UploadPageContent() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('isHandwritten', String(isHandwritten));
       if (requestId) {
         formData.append('requestId', requestId);
       }
@@ -345,6 +347,15 @@ function UploadPageContent() {
               </select>
               {errors.noteType && <p className="text-sm text-red-600 mt-1">{errors.noteType}</p>}
             </div>
+            <label className="flex items-start gap-2.5 rounded-xl border border-navy-100 bg-navy-50/60 p-3 text-sm text-navy-700">
+              <input
+                type="checkbox"
+                checked={isHandwritten}
+                onChange={event => setIsHandwritten(event.target.checked)}
+                className="mt-0.5"
+              />
+              <span><span className="font-semibold">El yazısı not</span><br /><span className="text-xs text-navy-500">Bu bilgiyi belirtmek notunun ilgili filtrelerde bulunmasına yardımcı olur.</span></span>
+            </label>
           </div>
         )}
 

@@ -6,8 +6,8 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
   Search, Upload, BookOpen, TrendingUp, Clock,
-  ArrowRight, GraduationCap, Users, Download, Star,
-  Sparkles, ArrowUpRight, FileText
+  ArrowRight, GraduationCap, Users, Star,
+  Sparkles, ArrowUpRight
 } from 'lucide-react';
 import NoteCard from '@/components/NoteCard';
 import ExamCountdown from '@/components/ExamCountdown';
@@ -173,83 +173,95 @@ export default function HomePage() {
               <Link href="/istekler" className="home-hero-chip">Not istekleri</Link>
             </div>
 
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link href="/kesfet" className="btn btn-teal btn-lg">
-                <BookOpen className="h-4 w-4" /> Notları keşfet
-              </Link>
-              <Link href="/yukle" className="btn btn-glass btn-lg">
-                <Upload className="h-4 w-4" /> Not paylaş
-              </Link>
+            <div className="mt-7 grid max-w-xl grid-cols-3 gap-3 sm:gap-4">
+              {stats.map((stat) => (
+                <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 backdrop-blur-sm">
+                  <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-white/8 text-teal-200">
+                    <stat.icon className="h-4 w-4" />
+                  </div>
+                  <div className="text-xl font-extrabold tracking-tight text-white">{stat.value}</div>
+                  <div className="mt-1 text-[11px] font-medium text-navy-300">{stat.label}</div>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="relative mx-auto w-full max-w-[470px] lg:ml-auto">
-            <div aria-hidden="true" className="absolute -inset-8 rounded-full bg-teal-400/10 blur-3xl" />
-            <div className="home-feature-card relative overflow-hidden rounded-[1.75rem] border border-white/60 bg-white p-5 text-navy-900 shadow-[0_32px_90px_rgba(1,13,26,0.32)] sm:p-7">
-              <div aria-hidden="true" className="absolute -right-12 -top-16 h-44 w-44 rounded-full border-[28px] border-teal-50/80" />
-              <div className="relative flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-50 text-teal-700">
-                    <Sparkles className="h-5 w-5" />
+          <div className="relative z-10 flex w-full justify-center lg:justify-end">
+            <ScrollReveal className="w-full max-w-[430px]">
+              <div className="home-hero-card w-full rounded-[28px] border border-white/10 bg-white/5 p-3 shadow-[0_30px_80px_rgba(3,18,35,0.38)] backdrop-blur-md">
+              <div className="rounded-[22px] border border-navy-100 bg-[radial-gradient(circle_at_top,_rgba(129,230,217,0.18),_transparent_42%),linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-4 text-navy-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] sm:p-5">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-teal-50 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-teal-700">
+                    <Star className="h-3.5 w-3.5 fill-teal-500 text-teal-600" />
+                    Öne çıkan not
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-navy-900">Öğrenme alanın</p>
-                    <p className="mt-0.5 text-xs text-navy-500">İhtiyacın olan kaynaklar bir arada</p>
-                  </div>
-                </div>
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">BANÜ</span>
-              </div>
-
-              <div className="home-feature-inner relative mt-6 rounded-2xl bg-[#f5f8fb] p-4 sm:p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-navy-400">
-                    {featuredNote ? 'Topluluğun seçimi' : 'Paylaşım arşivi'}
-                  </span>
-                  <TrendingUp className="h-4 w-4 text-teal-700" />
-                </div>
-                {featuredNote ? (
-                  <Link href={`/not/${featuredNote.id}`} className="group mt-4 block">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-teal-700 shadow-sm ring-1 ring-navy-100 transition-colors group-hover:bg-teal-50">
-                        <FileText className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 text-base font-bold leading-snug text-navy-900 transition-colors group-hover:text-teal-800">
-                          {featuredNote.title}
-                        </p>
-                        <p className="mt-1.5 truncate text-xs text-navy-500">
-                          {[featuredNote.course_name, featuredNote.faculty_name].filter(Boolean).join(' · ') || 'Ders notu'}
-                        </p>
-                      </div>
-                      <ArrowUpRight className="mt-1 h-4 w-4 shrink-0 text-navy-400 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-teal-700" />
-                    </div>
-                    <div className="mt-4 flex items-center gap-4 border-t border-navy-100 pt-3 text-xs text-navy-500">
-                      <span className="flex items-center gap-1.5"><Download className="h-3.5 w-3.5 text-teal-700" /> {featuredNote.download_count ?? 0} indirme</span>
-                      <span className="flex items-center gap-1.5"><Star className="h-3.5 w-3.5 text-amber-500" /> Öne çıkan kaynak</span>
-                    </div>
+                  <Link href={featuredNote ? `/not/${featuredNote.id}` : '/kesfet'} className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 transition-colors hover:text-teal-800">
+                    Aç <ArrowUpRight className="h-3.5 w-3.5" />
                   </Link>
+                </div>
+
+                {featuredNote ? (
+                  <>
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-navy-900 px-2.5 py-1 text-[10px] font-semibold text-white">{featuredNote.note_type || 'Not'}</span>
+                      {featuredNote.course_code && (
+                        <span className="rounded-full bg-teal-50 px-2.5 py-1 text-[10px] font-semibold text-teal-800">{featuredNote.course_code}</span>
+                      )}
+                    </div>
+
+                    <h3 className="line-clamp-2 text-xl font-bold leading-snug text-navy-900">{featuredNote.title}</h3>
+                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-navy-600">{featuredNote.description || 'Bu not, ders çalışırken ihtiyacın olan en kritik bilgileri özetliyor.'}</p>
+
+                    <div className="mt-5 rounded-2xl border border-navy-100 bg-navy-50/80 p-3">
+                      <div className="flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-navy-500">
+                        <span>{featuredNote.course_name || 'Ders'} </span>
+                        <span>{featuredNote.download_count || 0} indirme</span>
+                      </div>
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                        <div className="rounded-xl bg-white px-2 py-2.5 shadow-sm">
+                          <div className="text-base font-bold text-navy-900">{featuredNote.download_count || 0}</div>
+                          <div className="mt-1 text-[10px] text-navy-500">İndirme</div>
+                        </div>
+                        <div className="rounded-xl bg-white px-2 py-2.5 shadow-sm">
+                          <div className="text-base font-bold text-navy-900">{featuredNote.view_count || 0}</div>
+                          <div className="mt-1 text-[10px] text-navy-500">Görüntüleme</div>
+                        </div>
+                        <div className="rounded-xl bg-white px-2 py-2.5 shadow-sm">
+                          <div className="text-base font-bold text-navy-900">{(featuredNote.avg_rating ?? 0).toFixed(1)}</div>
+                          <div className="mt-1 text-[10px] text-navy-500">Puan</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex items-center justify-between gap-3 border-t border-navy-100 pt-4">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-50 text-sm font-bold text-teal-800">
+                          {(featuredNote.user_display_name || 'A').charAt(0).toUpperCase()}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-navy-800">{featuredNote.user_display_name || 'Anonim kullanıcı'}</p>
+                          <p className="text-[11px] text-navy-500">Topluluk katkısı</p>
+                        </div>
+                      </div>
+                      <Link href={featuredNote ? `/not/${featuredNote.id}` : '/kesfet'} className="btn btn-teal btn-sm">
+                        Görüntüle
+                      </Link>
+                    </div>
+                  </>
                 ) : (
-                  <div className="mt-4">
-                    <p className="text-lg font-bold text-navy-900">İyi notlar, iyi bir başlangıç.</p>
-                    <p className="mt-1 text-sm leading-6 text-navy-500">Ders kaynaklarını keşfet veya topluluğa ilk notunu ekle.</p>
+                  <div className="flex min-h-[250px] items-center justify-center rounded-2xl border border-dashed border-navy-200 bg-white/50 text-center">
+                    <div>
+                      <p className="text-lg font-semibold text-navy-800">Henüz içerik yok</p>
+                      <p className="mt-1 text-sm text-navy-500">İlk notu siz paylaşın.</p>
+                    </div>
                   </div>
                 )}
               </div>
-
-              <Link href="/kesfet?sort=popular" className="group relative mt-4 flex items-center justify-between rounded-xl border border-navy-100 px-4 py-3 transition-colors hover:border-teal-200 hover:bg-teal-50/60">
-                <span className="flex items-center gap-2 text-xs font-semibold text-navy-700"><TrendingUp className="h-4 w-4 text-teal-700" /> Popüler kaynakları keşfet</span>
-                <ArrowUpRight className="h-4 w-4 text-navy-400 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-teal-700" />
-              </Link>
             </div>
-            <div className="home-float-note absolute -bottom-5 -left-4 hidden items-center gap-3 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-[0_16px_40px_rgba(1,13,26,0.18)] sm:flex">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 text-teal-700"><BookOpen className="h-4 w-4" /></span>
-              <div>
-                <p className="text-xs font-bold text-navy-900">Birlikte daha güçlüyüz</p>
-                <p className="mt-0.5 text-[10px] text-navy-500">Paylaş · keşfet · öğren</p>
-              </div>
-            </div>
+            </ScrollReveal>
           </div>
         </div>
+
         <div className="home-hero-bottom-rule absolute inset-x-0 bottom-0 h-px" />
       </section>
 
@@ -360,48 +372,58 @@ export default function HomePage() {
           </div>
           
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="card p-5 space-y-3">
-                  <div className="skeleton h-5 w-3/4" />
-                  <div className="skeleton h-4 w-1/2" />
-                  <div className="skeleton h-4 w-full" />
-                </div>
-              ))}
-            </div>
-          ) : activeTab === 'recent' ? (
-            recentNotes.length > 0 ? (
+            <ScrollReveal stagger>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {recentNotes.map(note => (
-                  <NoteCard key={note.id} note={note} />
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="card p-5 space-y-3">
+                    <div className="skeleton h-5 w-3/4" />
+                    <div className="skeleton h-4 w-1/2" />
+                    <div className="skeleton h-4 w-full" />
+                  </div>
                 ))}
               </div>
+            </ScrollReveal>
+          ) : activeTab === 'recent' ? (
+            recentNotes.length > 0 ? (
+              <ScrollReveal stagger>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {recentNotes.map(note => (
+                    <NoteCard key={note.id} note={note} />
+                  ))}
+                </div>
+              </ScrollReveal>
             ) : (
-              <div className="empty-state">
-                <BookOpen className="w-12 h-12" />
-                <h3 className="text-lg font-semibold text-navy-800 mt-2">Henüz not eklenmemiş</h3>
-                <p className="text-navy-500 mt-1">İlk notu paylaşan sen ol!</p>
-                <Link href="/yukle" className="btn btn-teal mt-4">
-                  <Upload className="w-4 h-4" /> Not Paylaş
-                </Link>
-              </div>
+              <ScrollReveal>
+                <div className="empty-state">
+                  <BookOpen className="w-12 h-12" />
+                  <h3 className="text-lg font-semibold text-navy-800 mt-2">Henüz not eklenmemiş</h3>
+                  <p className="text-navy-500 mt-1">İlk notu paylaşan sen ol!</p>
+                  <Link href="/yukle" className="btn btn-teal mt-4">
+                    <Upload className="w-4 h-4" /> Not Paylaş
+                  </Link>
+                </div>
+              </ScrollReveal>
             )
           ) : (
             followedNotes.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {followedNotes.map(note => (
-                  <NoteCard key={note.id} note={note} />
-                ))}
-              </div>
+              <ScrollReveal stagger>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {followedNotes.map(note => (
+                    <NoteCard key={note.id} note={note} />
+                  ))}
+                </div>
+              </ScrollReveal>
             ) : (
-              <div className="empty-state">
-                <BookOpen className="w-12 h-12" />
-                <h3 className="text-lg font-semibold text-navy-800 mt-2">Ders Takibi</h3>
-                <p className="text-navy-500 mt-1">Takip ettiğiniz derslerde henüz not yok veya hiç ders takip etmiyorsunuz.</p>
-                <Link href="/dersler" className="btn btn-teal mt-4">
-                  Dersleri Keşfet
-                </Link>
-              </div>
+              <ScrollReveal>
+                <div className="empty-state">
+                  <BookOpen className="w-12 h-12" />
+                  <h3 className="text-lg font-semibold text-navy-800 mt-2">Ders Takibi</h3>
+                  <p className="text-navy-500 mt-1">Takip ettiğiniz derslerde henüz not yok veya hiç ders takip etmiyorsunuz.</p>
+                  <Link href="/dersler" className="btn btn-teal mt-4">
+                    Dersleri Keşfet
+                  </Link>
+                </div>
+              </ScrollReveal>
             )
           )}
         </div>
@@ -421,11 +443,13 @@ export default function HomePage() {
               </Link>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {recommendedNotes.map(note => (
-                <NoteCard key={`rec-${note.id}`} note={note} />
-              ))}
-            </div>
+            <ScrollReveal stagger>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {recommendedNotes.map(note => (
+                  <NoteCard key={`rec-${note.id}`} note={note} />
+                ))}
+              </div>
+            </ScrollReveal>
           </div>
         </section>
       )}
@@ -442,11 +466,13 @@ export default function HomePage() {
               Tüm popüler notlar <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {popularNotes.map(note => (
-              <NoteCard key={note.id} note={note} />
-            ))}
-          </div>
+          <ScrollReveal stagger>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {popularNotes.map(note => (
+                <NoteCard key={note.id} note={note} />
+              ))}
+            </div>
+          </ScrollReveal>
         </section>
       )}
 
@@ -463,21 +489,23 @@ export default function HomePage() {
                 Tüm istekler <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {recentRequests.map(req => (
-                <Link key={req.id} href="/istekler" className="card p-5 hover:border-teal-300 transition-colors bg-white">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-navy-900 text-lg">{req.title}</h3>
-                    <span className="badge badge-accent bg-accent-100 text-accent-700">{req.reward_points} Puan</span>
-                  </div>
-                  <p className="text-sm text-navy-600 line-clamp-2 mb-4">{req.description || 'Açıklama yok'}</p>
-                  <div className="flex items-center justify-between text-xs text-navy-500">
-                    <span>{req.user_display_name} tarafından istendi</span>
-                    <span>{new Date(req.created_at).toLocaleDateString()}</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
+            <ScrollReveal stagger>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {recentRequests.map(req => (
+                  <Link key={req.id} href="/istekler" className="card p-5 hover:border-teal-300 transition-colors bg-white">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-bold text-navy-900 text-lg">{req.title}</h3>
+                      <span className="badge badge-accent bg-accent-100 text-accent-700">{req.reward_points} Puan</span>
+                    </div>
+                    <p className="text-sm text-navy-600 line-clamp-2 mb-4">{req.description || 'Açıklama yok'}</p>
+                    <div className="flex items-center justify-between text-xs text-navy-500">
+                      <span>{req.user_display_name} tarafından istendi</span>
+                      <span>{new Date(req.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </ScrollReveal>
           </div>
         </section>
       )}
@@ -496,7 +524,7 @@ export default function HomePage() {
                 { step: '3', title: 'Paylaş', desc: 'Kendi notlarını yükleyerek topluluğa katkıda bulun.' },
               ].map((item) => (
                 <div key={item.step} className="text-center">
-                  <div className="w-12 h-12 bg-teal-600 text-white rounded-full flex items-center justify-center text-lg font-bold mx-auto mb-3">
+                  <div className="w-12 h-12 bg-teal-600 text-white rounded-full flex items-center justify-center text-lg font-bold mx-auto mb-3 transition-transform duration-200 hover:scale-105">
                     {item.step}
                   </div>
                   <h3 className="font-semibold text-navy-900 mb-1">{item.title}</h3>

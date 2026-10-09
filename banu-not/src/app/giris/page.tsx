@@ -16,6 +16,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const authError = new URLSearchParams(window.location.search).get('error');
+    if (authError) setError(authError);
+  }, []);
+
+  useEffect(() => {
     if (status === 'authenticated') {
       const user = session?.user as any;
       if (!user?.universityId) {
@@ -148,6 +153,11 @@ export default function LoginPage() {
             Hesabınız yok mu?{' '}
             <Link href="/kayit" className="text-teal-600 hover:text-teal-700 font-medium">
               Kayıt Ol
+            </Link>
+          </div>
+          <div className="mt-3 text-center text-sm">
+            <Link href="/dogrulama-e-postasi" className="font-medium text-teal-700 hover:text-teal-800">
+              Doğrulama e-postasını yeniden gönder
             </Link>
           </div>
         </div>

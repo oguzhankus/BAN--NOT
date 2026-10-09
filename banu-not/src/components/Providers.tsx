@@ -12,7 +12,7 @@ function ProfileCheck({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
-      const user = session.user as any;
+      const user = session.user as typeof session.user & { universityId?: string | null };
       if (!user.universityId && pathname !== '/profil-tamamla' && pathname !== '/giris' && pathname !== '/kayit') {
         router.push('/profil-tamamla');
       }
@@ -23,6 +23,14 @@ function ProfileCheck({ children }: { children: ReactNode }) {
 }
 
 export default function Providers({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+
+    navigator.serviceWorker.register('/sw.js').catch((error: unknown) => {
+      console.error('Service worker registration failed:', error);
+    });
+  }, []);
+
   return (
     <SessionProvider>
       <ThemeProvider attribute="data-theme" defaultTheme="light">

@@ -54,6 +54,10 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Şifre hatalı. Lütfen tekrar deneyin.');
         }
 
+        if (!user.is_email_verified) {
+          throw new Error('E-posta adresinizi doğrulamak için gelen kutunuzdaki bağlantıyı açın.');
+        }
+
         return {
           id: user.id,
           email: user.email,
@@ -68,6 +72,10 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account, profile }) {
       if (account?.provider === 'google') {
         const email = (user.email || '').toLowerCase().trim();
+        if (!email) return false;
+        const googleEmailVerified = Boolean(
+          profile && 'email_verified' in profile && profile.email_verified === true
+        );
         const db = getDb();
         const existingUser = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
         
@@ -76,19 +84,31 @@ export const authOptions: NextAuthOptions = {
           if (!email.endsWith('@ogr.bandirma.edu.tr')) {
             return '/giris?error=Sisteme sadece @ogr.bandirma.edu.tr uzantılı öğrenci e-postaları ile kayıt olunabilir.';
           }
+          if (!googleEmailVerified) {
+            return '/giris?error=Google hesabındaki e-posta adresi doğrulanmış değil.';
+          }
           // Register new user via Google
           db.prepare(`
-            INSERT INTO users (id, email, password_hash, display_name, avatar_url, university_id, role, is_active)
-            VALUES (?, ?, '', ?, ?, ?, 'user', 1)
+            INSERT INTO users (id, email, password_hash, display_name, avatar_url, university_id, role, is_active, is_email_verified)
+            VALUES (?, ?, '', ?, ?, ?, 'user', 1, 1)
           `).run(
             uuidv4(),
-            user.email,
+            email,
             user.name || 'Google User',
             user.image || null,
             null // Needs to select university later
           );
-        } else if (existingUser.is_banned) {
-          return false;
+        } else {
+          if (existingUser.is_banned) return false;
+          if (googleEmailVerified && !existingUser.is_email_verified) {
+            db.prepare(`
+              UPDATE users
+              SET is_email_verified = 1, email_verify_token = NULL, email_verify_expires = NULL
+              WHERE id = ?
+            `).run(existingUser.id);
+          } else if (!existingUser.is_email_verified) {
+            return '/giris?error=E-posta adresinizi doğrulamanız gerekiyor.';
+          }
         }
       }
       return true;

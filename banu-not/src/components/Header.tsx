@@ -136,6 +136,15 @@ export default function Header() {
             >
               Dersler
             </Link>
+            {session && (
+              <Link
+                href="/calisma-plani"
+                data-current={pathname?.startsWith('/calisma-plani') ? 'true' : undefined}
+                className="site-nav-link"
+              >
+                Çalışma Planı
+              </Link>
+            )}
             <Link
               href="/nasil-calisir"
               data-current={pathname === '/nasil-calisir' ? 'true' : undefined}
@@ -373,6 +382,11 @@ export default function Header() {
               <Link href="/dersler" className={`block rounded-xl px-3 py-2.5 text-sm font-semibold ${pathname?.startsWith('/dersler') ? 'text-teal-800 bg-teal-50' : 'text-navy-700 hover:bg-navy-50'}`}>
                 Dersler
               </Link>
+              {session && (
+                <Link href="/calisma-plani" className={`block rounded-xl px-3 py-2.5 text-sm font-semibold ${pathname?.startsWith('/calisma-plani') ? 'text-teal-800 bg-teal-50' : 'text-navy-700 hover:bg-navy-50'}`}>
+                  Çalışma Planı ve Pomodoro
+                </Link>
+              )}
               <Link href="/nasil-calisir" className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-navy-700 hover:bg-navy-50">
                 Nasıl Çalışır
               </Link>

@@ -17,7 +17,7 @@ export async function GET(
     // Try finding by course
     if (note.course_id) {
       similarNotes = db.prepare(`
-        SELECT n.*, u.display_name as user_display_name
+        SELECT n.*, u.display_name as user_display_name, u.is_email_verified as user_is_email_verified
         FROM notes n
         LEFT JOIN users u ON n.user_id = u.id
         WHERE n.course_id = ? AND n.id != ? AND n.status = 'published'
@@ -28,7 +28,7 @@ export async function GET(
     // If not enough, try by department
     if (similarNotes.length < 3 && note.department_id) {
       const more = db.prepare(`
-        SELECT n.*, u.display_name as user_display_name
+        SELECT n.*, u.display_name as user_display_name, u.is_email_verified as user_is_email_verified
         FROM notes n
         LEFT JOIN users u ON n.user_id = u.id
         WHERE n.department_id = ? AND n.id != ? AND n.status = 'published'
@@ -41,7 +41,7 @@ export async function GET(
     // If still not enough, try by faculty
     if (similarNotes.length < 3 && note.faculty_id) {
       const more = db.prepare(`
-        SELECT n.*, u.display_name as user_display_name
+        SELECT n.*, u.display_name as user_display_name, u.is_email_verified as user_is_email_verified
         FROM notes n
         LEFT JOIN users u ON n.user_id = u.id
         WHERE n.faculty_id = ? AND n.id != ? AND n.status = 'published'

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { User, BookOpen, Download, Eye, Calendar, MessageSquare } from 'lucide-react';
+import { User, BookOpen, Download, Eye, Calendar, MessageSquare, BadgeCheck } from 'lucide-react';
 import NoteCard from '@/components/NoteCard';
 import Link from 'next/link';
 
@@ -73,6 +73,11 @@ export default function PublicProfilePage() {
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <h1 className="text-2xl font-bold text-navy-900">{profile.display_name}</h1>
+                {profile.is_email_verified === 1 && (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
+                    <BadgeCheck className="h-4 w-4" aria-hidden="true" /> Üniversite e-postası doğrulandı
+                  </span>
+                )}
                 {profile.role === 'admin' && (
                   <span className="badge badge-teal">Yönetici</span>
                 )}

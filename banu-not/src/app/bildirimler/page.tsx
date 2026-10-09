@@ -1,59 +1,90 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Bell, Check, Trash2 } from 'lucide-react';
 import { timeAgo } from '@/lib/constants';
+import PushNotificationSettings from '@/components/PushNotificationSettings';
+
+interface UserNotification {
+  id: string;
+  title: string;
+  message: string;
+  created_at: string;
+  is_read: number;
+}
 
 export default function NotificationsPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<UserNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await fetch('/api/notifications');
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Bildirimler yüklenemedi.');
+      }
+      setNotifications(data.data.items || []);
+      setErrorMessage('');
+    } catch (error) {
+      console.error('Notifications page load error:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Bildirimler yüklenemedi.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/giris');
     } else if (status === 'authenticated') {
-      fetchNotifications();
+      // Fetching notifications synchronizes this view with the server after authentication.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void fetchNotifications();
     }
-  }, [status, router]);
-
-  const fetchNotifications = async () => {
-    try {
-      const res = await fetch('/api/notifications');
-      const data = await res.json();
-      if (data.success) {
-        setNotifications(data.data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [status, router, fetchNotifications]);
 
   const markAsRead = async (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: 1 } : n));
     try {
-      await fetch('/api/notifications', {
+      const res = await fetch('/api/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       });
-    } catch (err) {}
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Bildirim güncellenemedi.');
+      }
+      setNotifications(prev => prev.map(notification => notification.id === id
+        ? { ...notification, is_read: 1 }
+        : notification));
+    } catch (error) {
+      console.error('Mark notification read error:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Bildirim güncellenemedi.');
+    }
   };
 
   const clearAll = async () => {
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
     try {
-      await fetch('/api/notifications', {
+      const res = await fetch('/api/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
-    } catch (err) {}
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Bildirimler güncellenemedi.');
+      }
+      setNotifications(prev => prev.map(notification => ({ ...notification, is_read: 1 })));
+    } catch (error) {
+      console.error('Mark all notifications read error:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Bildirimler güncellenemedi.');
+    }
   };
 
   if (loading) {
@@ -81,6 +112,9 @@ export default function NotificationsPage() {
           </button>
         )}
       </div>
+
+      {status === 'authenticated' && <PushNotificationSettings />}
+      {errorMessage && <p role="alert" className="mb-4 text-sm text-red-600">{errorMessage}</p>}
 
       <div className="space-y-4">
         {notifications.length > 0 ? (

@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import path from 'path';
 import fs from 'fs';
+import { v4 as uuid } from 'uuid';
 
 export async function GET(
   request: NextRequest,
@@ -12,16 +13,17 @@ export async function GET(
   try {
     const db = await ensureDb();
     const { id } = await params;
-
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return errorResponse('Dosya indirmek için giriş yapmalısınız veya kayıt olmalısınız.', 401);
     }
+    const userId = (session.user as { id: string }).id;
 
     const noteFile = db.prepare(`
       SELECT nf.*, n.title, n.status FROM note_files nf
       JOIN notes n ON nf.note_id = n.id
       WHERE nf.note_id = ? AND n.status = 'published'
+      ORDER BY nf.created_at DESC, nf.rowid DESC
       LIMIT 1
     `).get(id) as any;
 
@@ -36,6 +38,7 @@ export async function GET(
 
     // Increment download count (only once per request)
     db.prepare('UPDATE notes SET download_count = download_count + 1 WHERE id = ?').run(id);
+    db.prepare('INSERT INTO note_downloads (id, note_id, user_id) VALUES (?, ?, ?)').run(uuid(), id, userId);
 
     const fileBuffer = fs.readFileSync(filePath);
     

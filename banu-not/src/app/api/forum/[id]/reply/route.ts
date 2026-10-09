@@ -3,6 +3,9 @@ import { ensureDb, successResponse, errorResponse } from '@/lib/api-utils';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { v4 as uuid } from 'uuid';
+import { sendPushNotification } from '@/lib/push-notifications';
+
+type SessionUser = { id: string };
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -10,7 +13,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!session?.user) return errorResponse('Giriş yapmalısınız', 401);
 
     const db = await ensureDb();
-    const userId = (session.user as any).id;
+    const userId = (session.user as SessionUser).id;
     const { id: postId } = await params;
     const { content } = await request.json();
 
@@ -18,7 +21,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return errorResponse('Cevabınız en az 5 karakter olmalıdır');
     }
 
-    const post = db.prepare('SELECT id, user_id FROM forum_posts WHERE id = ?').get(postId) as any;
+    const post = db.prepare('SELECT id, user_id FROM forum_posts WHERE id = ?').get(postId) as
+      | { id: string; user_id: string }
+      | undefined;
     if (!post) return errorResponse('Soru bulunamadı', 404);
 
     const replyId = uuid();
@@ -39,6 +44,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         `${session.user?.name || 'Bir kullanıcı'} sorunuza cevap yazdı.`,
         `/soru-cevap/${postId}`
       );
+      await sendPushNotification(db, post.user_id, {
+        title: 'Sorunuza yeni bir cevap geldi!',
+        body: `${session.user?.name || 'Bir kullanıcı'} sorunuza cevap yazdı.`,
+        url: `/soru-cevap/${postId}`,
+      });
     }
 
     return successResponse({ id: replyId, message: 'Cevabınız başarıyla paylaşıldı.' }, 201);

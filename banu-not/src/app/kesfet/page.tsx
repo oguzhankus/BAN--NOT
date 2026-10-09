@@ -42,6 +42,9 @@ function ExploreContent() {
   const [selectedCourse, setSelectedCourse] = useState(searchParams.get('course') || '');
   const [selectedType, setSelectedType] = useState(searchParams.get('type') || '');
   const [selectedSemester, setSelectedSemester] = useState(searchParams.get('semester') || '');
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(searchParams.get('academicYear') || '');
+  const [selectedFileType, setSelectedFileType] = useState(searchParams.get('fileType') || '');
+  const [minimumRating, setMinimumRating] = useState(searchParams.get('minRating') || '');
   const [sort, setSort] = useState(searchParams.get('sort') || 'newest');
   const [page, setPage] = useState(parseInt(searchParams.get('page') || '1'));
   const [showFilters, setShowFilters] = useState(false);
@@ -117,6 +120,9 @@ function ExploreContent() {
     if (selectedCourse) params.set('course', selectedCourse);
     if (selectedType) params.set('type', selectedType);
     if (selectedSemester) params.set('semester', selectedSemester);
+    if (selectedAcademicYear.trim()) params.set('academicYear', selectedAcademicYear.trim());
+    if (selectedFileType) params.set('fileType', selectedFileType);
+    if (minimumRating) params.set('minRating', minimumRating);
     params.set('sort', sort);
     params.set('page', page.toString());
 
@@ -136,7 +142,7 @@ function ExploreContent() {
     } finally {
       setLoading(false);
     }
-  }, [query, selectedUni, selectedFaculty, selectedDept, selectedCourse, selectedType, selectedSemester, sort, page]);
+  }, [query, selectedUni, selectedFaculty, selectedDept, selectedCourse, selectedType, selectedSemester, selectedAcademicYear, selectedFileType, minimumRating, sort, page]);
 
   useEffect(() => {
     searchNotes();
@@ -149,11 +155,14 @@ function ExploreContent() {
     setSelectedCourse('');
     setSelectedType('');
     setSelectedSemester('');
+    setSelectedAcademicYear('');
+    setSelectedFileType('');
+    setMinimumRating('');
     setSort('newest');
     setPage(1);
   };
 
-  const hasActiveFilters = query.trim() || selectedFaculty || selectedDept || selectedCourse || selectedType || selectedSemester;
+  const hasActiveFilters = query.trim() || selectedFaculty || selectedDept || selectedCourse || selectedType || selectedSemester || selectedAcademicYear || selectedFileType || minimumRating;
 
   const toggleTrackCourse = async () => {
     if (!session) {
@@ -342,6 +351,48 @@ function ExploreContent() {
               </select>
             </div>
 
+            <div>
+              <label className="label" htmlFor="filter-academic-year">Akademik yıl</label>
+              <input
+                id="filter-academic-year"
+                className="input"
+                value={selectedAcademicYear}
+                onChange={event => { setSelectedAcademicYear(event.target.value); setPage(1); }}
+                placeholder="Örn. 2025-2026"
+                maxLength={20}
+              />
+            </div>
+
+            <div>
+              <label className="label" htmlFor="filter-file-type">Dosya türü</label>
+              <select
+                id="filter-file-type"
+                value={selectedFileType}
+                onChange={event => { setSelectedFileType(event.target.value); setPage(1); }}
+                className="input"
+              >
+                <option value="">Tüm türler</option>
+                <option value="pdf">PDF</option>
+                <option value="image">Görsel</option>
+                <option value="handwritten">El yazısı</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="label" htmlFor="filter-min-rating">En az puan</label>
+              <select
+                id="filter-min-rating"
+                value={minimumRating}
+                onChange={event => { setMinimumRating(event.target.value); setPage(1); }}
+                className="input"
+              >
+                <option value="">Fark etmez</option>
+                {[5, 4, 3, 2, 1].map(rating => (
+                  <option key={rating} value={rating}>{rating} yıldız ve üzeri</option>
+                ))}
+              </select>
+            </div>
+
             {/* Sort */}
             <div>
               <label className="label" htmlFor="filter-sort">Sıralama</label>
@@ -416,6 +467,21 @@ function ExploreContent() {
                     {SEMESTERS.find(semester => semester.value === selectedSemester)?.label || selectedSemester} <X className="w-3 h-3" />
                   </button>
                 )}
+                {selectedAcademicYear && (
+                  <button onClick={() => setSelectedAcademicYear('')} className="badge badge-navy flex items-center gap-1 cursor-pointer hover:opacity-80">
+                    {selectedAcademicYear} <X className="w-3 h-3" />
+                  </button>
+                )}
+                {selectedFileType && (
+                  <button onClick={() => setSelectedFileType('')} className="badge badge-navy flex items-center gap-1 cursor-pointer hover:opacity-80">
+                    {selectedFileType === 'pdf' ? 'PDF' : selectedFileType === 'image' ? 'Görsel' : 'El yazısı'} <X className="w-3 h-3" />
+                  </button>
+                )}
+                {minimumRating && (
+                  <button onClick={() => setMinimumRating('')} className="badge badge-accent flex items-center gap-1 cursor-pointer hover:opacity-80">
+                    {minimumRating}+ yıldız <X className="w-3 h-3" />
+                  </button>
+                )}
                 </div>
               </div>
               
@@ -426,6 +492,15 @@ function ExploreContent() {
                 >
                   <BookOpen className="w-4 h-4" /> 
                   {trackedCourses.includes(selectedCourse) ? 'Takipten Çık' : 'Dersi Takip Et'}
+                </button>
+              )}
+              {selectedCourse && (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/dersler/${encodeURIComponent(selectedCourse)}`)}
+                  className="btn btn-secondary btn-sm shrink-0"
+                >
+                  Ders sayfası <ArrowRight className="h-4 w-4" />
                 </button>
               )}
             </div>

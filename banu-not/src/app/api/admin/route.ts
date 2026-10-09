@@ -3,6 +3,7 @@ import { ensureDb, successResponse, errorResponse } from '@/lib/api-utils';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { v4 as uuid } from 'uuid';
+import { sendPushNotification } from '@/lib/push-notifications';
 
 const REPORT_STATUSES = ['pending', 'reviewing', 'resolved', 'dismissed'] as const;
 const NOTE_STATUSES = ['published', 'pending_review', 'rejected', 'removed'] as const;
@@ -218,23 +219,30 @@ export async function POST(request: NextRequest) {
           | undefined;
         if (!note) return errorResponse('Not bulunamadı.', 404);
 
+        const msgMap: Partial<Record<typeof status, string>> = {
+          published: `"${note.title}" başlıklı notunuz onaylandı ve yayınlandı.`,
+          rejected: `"${note.title}" başlıklı notunuz reddedildi. Neden: ${reason || 'Belirtilmedi'}`,
+          removed: `"${note.title}" başlıklı notunuz kaldırıldı.`,
+        };
+        const notificationMessage = msgMap[status];
         const update = db.transaction(() => {
           db.prepare(`UPDATE notes SET status = ?, rejection_reason = ?, updated_at = datetime('now') WHERE id = ?`)
             .run(status, status === 'rejected' ? reason || null : null, noteId);
 
-          const msgMap: Partial<Record<typeof status, string>> = {
-            published: `"${note.title}" başlıklı notunuz onaylandı ve yayınlandı.`,
-            rejected: `"${note.title}" başlıklı notunuz reddedildi. Neden: ${reason || 'Belirtilmedi'}`,
-            removed: `"${note.title}" başlıklı notunuz kaldırıldı.`,
-          };
-          const message = msgMap[status];
-          if (message) {
+          if (notificationMessage) {
             db.prepare('INSERT INTO notifications (id, user_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)')
-              .run(uuid(), note.user_id, `note_${status}`, 'Not Durumu Güncellendi', message, `/not/${noteId}`);
+              .run(uuid(), note.user_id, `note_${status}`, 'Not Durumu Güncellendi', notificationMessage, `/not/${noteId}`);
           }
           writeAuditLog(db, admin.id, `note_${status}`, 'note', noteId, reason || null);
         });
         update();
+        if (notificationMessage) {
+          await sendPushNotification(db, note.user_id, {
+            title: 'Not Durumu Güncellendi',
+            body: notificationMessage,
+            url: `/not/${noteId}`,
+          });
+        }
 
         return successResponse({ message: 'Not durumu güncellendi.' });
       }

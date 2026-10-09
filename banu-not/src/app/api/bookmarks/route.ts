@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
       SELECT n.*, b.created_at as bookmarked_at,
              (SELECT COUNT(*) FROM bookmarks WHERE note_id = n.id) as bookmark_count,
              u.display_name as user_display_name, u.avatar_url as user_avatar,
+             u.is_email_verified as user_is_email_verified,
              f.short_name as faculty_name, d.short_name as department_name, c.name as course_name
       FROM bookmarks b
       JOIN notes n ON b.note_id = n.id

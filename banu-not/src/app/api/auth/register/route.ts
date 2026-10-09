@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { ensureDb, successResponse, errorResponse } from '@/lib/api-utils';
 import bcrypt from 'bcryptjs';
 import { v4 as uuid } from 'uuid';
+import { createHash, randomBytes } from 'node:crypto';
+import { isMailConfigured, sendVerificationEmail } from '@/lib/mail';
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,6 +34,10 @@ export async function POST(request: NextRequest) {
       return errorResponse('Sadece @ogr.bandirma.edu.tr uzantılı öğrenci e-postası ile kayıt olabilirsiniz.');
     }
 
+    if (!isMailConfigured()) {
+      return errorResponse('Kayıt için e-posta doğrulaması gerekir. Sunucu SMTP ayarları henüz yapılandırılmamış.', 503);
+    }
+
     if (displayName.length < 2 || displayName.length > 50) {
       return errorResponse('Görünen ad 2-50 karakter arasında olmalıdır.');
     }
@@ -45,13 +51,41 @@ export async function POST(request: NextRequest) {
     // Create user
     const id = uuid();
     const passwordHash = await bcrypt.hash(password, 12);
+    const verificationToken = randomBytes(32).toString('hex');
+    const verificationTokenHash = createHash('sha256').update(verificationToken).digest('hex');
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
     db.prepare(`
-      INSERT INTO users (id, email, password_hash, display_name, university_id, faculty_id, department_id, class_year, is_email_verified)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-    `).run(id, normalizedEmail, passwordHash, displayName.trim(), universityId || null, facultyId || null, departmentId || null, classYear || null);
+      INSERT INTO users (
+        id, email, password_hash, display_name, university_id, faculty_id,
+        department_id, class_year, is_email_verified, email_verify_token,
+        email_verify_expires, email_verification_sent_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, datetime('now'))
+    `).run(
+      id,
+      normalizedEmail,
+      passwordHash,
+      displayName.trim(),
+      universityId || null,
+      facultyId || null,
+      departmentId || null,
+      classYear || null,
+      verificationTokenHash,
+      verificationExpires,
+    );
 
-    return successResponse({ message: 'Hesabınız başarıyla oluşturuldu. Giriş yapabilirsiniz.' }, 201);
+    try {
+      await sendVerificationEmail(normalizedEmail, verificationToken);
+    } catch (error) {
+      console.error('Registration verification email error:', error);
+      return errorResponse(
+        'Hesap oluşturuldu ancak doğrulama e-postası gönderilemedi. SMTP ayarlarını kontrol ettirin veya doğrulama e-postasını yeniden isteyin.',
+        503,
+      );
+    }
+
+    return successResponse({ message: 'Hesap oluşturuldu. Giriş yapmadan önce e-posta adresindeki doğrulama bağlantısını açın.' }, 201);
   } catch (error) {
     console.error('Registration error:', error);
     return errorResponse('Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.', 500);

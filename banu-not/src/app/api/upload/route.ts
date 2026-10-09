@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
     const courseCode = formData.get('courseCode') as string;
     const semester = formData.get('semester') as string;
     const academicYear = formData.get('academicYear') as string;
+    const isHandwritten = formData.get('isHandwritten') === 'true' ? 1 : 0;
     const topic = formData.get('topic') as string;
     const tagsStr = formData.get('tags') as string;
     const requestId = formData.get('requestId') as string;
@@ -94,9 +95,9 @@ export async function POST(request: NextRequest) {
     // Create note
     const noteId = uuid();
     db.prepare(`
-      INSERT INTO notes (id, title, description, note_type, university_id, faculty_id, department_id, course_id, course_code, semester, academic_year, topic, user_id, status, file_hash)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(noteId, title.trim(), description?.trim() || null, noteType, universityId || null, facultyId || null, departmentId || null, courseId || null, courseCode?.trim() || null, semester || null, academicYear || null, topic?.trim() || null, userId, status, hash);
+      INSERT INTO notes (id, title, description, note_type, university_id, faculty_id, department_id, course_id, course_code, semester, academic_year, is_handwritten, topic, user_id, status, file_hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(noteId, title.trim(), description?.trim() || null, noteType, universityId || null, facultyId || null, departmentId || null, courseId || null, courseCode?.trim() || null, semester || null, academicYear || null, isHandwritten, topic?.trim() || null, userId, status, hash);
 
     // Create note file
     db.prepare(`

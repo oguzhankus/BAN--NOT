@@ -68,6 +68,43 @@ export default function ForumPostPage({ params }: { params: { id: string } }) {
     }
   };
 
+  async function vote(targetType: 'post' | 'reply', targetId: string, voteValue: 1 | -1) {
+    if (!session?.user) {
+      showToast('Oy vermek için giriş yapmalısınız.', 'error');
+      return;
+    }
+    try {
+      const response = await fetch(`/api/forum/${params.id}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetType, targetId, vote: voteValue }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Oy kaydedilemedi.');
+      const counts = result.data as { upvotes: number; downvotes: number };
+      if (targetType === 'post') setPost((current: any) => ({ ...current, upvotes: counts.upvotes, downvotes: counts.downvotes }));
+      else setReplies(current => current.map(reply => reply.id === targetId ? { ...reply, upvotes: counts.upvotes, downvotes: counts.downvotes } : reply));
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Oy kaydedilemedi.', 'error');
+    }
+  }
+
+  async function acceptReply(replyId: string) {
+    try {
+      const response = await fetch(`/api/forum/${params.id}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ replyId }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Çözüm işaretlenemedi.');
+      showToast('Cevap çözüm olarak işaretlendi.');
+      await fetchPost();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Çözüm işaretlenemedi.', 'error');
+    }
+  }
+
   if (loading) return <div className="container-app py-8"><div className="skeleton h-64 w-full mb-8" /></div>;
   if (!post) return null;
 
@@ -109,6 +146,14 @@ export default function ForumPostPage({ params }: { params: { id: string } }) {
           <div className="prose prose-navy max-w-none mb-8 whitespace-pre-wrap text-navy-800">
             {post.content}
           </div>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => void vote('post', post.id, 1)} className="inline-flex items-center gap-1 rounded-lg border border-navy-100 px-3 py-2 text-sm text-navy-600 hover:bg-teal-50 hover:text-teal-700" aria-label="Soruyu faydalı bul">
+              <ThumbsUp className="h-4 w-4" /> {post.upvotes || 0}
+            </button>
+            <button type="button" onClick={() => void vote('post', post.id, -1)} className="inline-flex items-center gap-1 rounded-lg border border-navy-100 px-3 py-2 text-sm text-navy-600 hover:bg-red-50 hover:text-red-700" aria-label="Soruyu yararsız bul">
+              <ThumbsDown className="h-4 w-4" /> {post.downvotes || 0}
+            </button>
+          </div>
 
         </div>
       </div>
@@ -145,6 +190,19 @@ export default function ForumPostPage({ params }: { params: { id: string } }) {
 
                 <div className="text-navy-800 whitespace-pre-wrap">
                   {reply.content}
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={() => void vote('reply', reply.id, 1)} className="inline-flex items-center gap-1 rounded-lg border border-navy-100 px-3 py-1.5 text-xs text-navy-600 hover:bg-teal-50 hover:text-teal-700" aria-label="Cevabı faydalı bul">
+                    <ThumbsUp className="h-3.5 w-3.5" /> {reply.upvotes || 0}
+                  </button>
+                  <button type="button" onClick={() => void vote('reply', reply.id, -1)} className="inline-flex items-center gap-1 rounded-lg border border-navy-100 px-3 py-1.5 text-xs text-navy-600 hover:bg-red-50 hover:text-red-700" aria-label="Cevabı yararsız bul">
+                    <ThumbsDown className="h-3.5 w-3.5" /> {reply.downvotes || 0}
+                  </button>
+                  {session?.user && ((session.user as any).id === post.user_id || ['admin', 'moderator'].includes((session.user as any).role)) && reply.is_accepted !== 1 && (
+                    <button type="button" onClick={() => void acceptReply(reply.id)} className="ml-auto inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
+                      <CheckCircle className="h-3.5 w-3.5" /> En iyi cevap
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

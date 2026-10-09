@@ -44,6 +44,8 @@ function initializeDatabase(db: Database.Database) {
       role TEXT DEFAULT 'user' CHECK(role IN ('user', 'moderator', 'admin')),
       is_email_verified INTEGER DEFAULT 0,
       email_verify_token TEXT,
+      email_verify_expires TEXT,
+      email_verification_sent_at TEXT,
       reset_token TEXT,
       reset_token_expiry TEXT,
       is_active INTEGER DEFAULT 1,
@@ -136,6 +138,7 @@ function initializeDatabase(db: Database.Database) {
       course_code TEXT,
       semester TEXT,
       academic_year TEXT,
+      is_handwritten INTEGER DEFAULT 0,
       topic TEXT,
       user_id TEXT NOT NULL,
       status TEXT DEFAULT 'published' CHECK(status IN ('draft', 'pending_review', 'published', 'rejected', 'removed')),
@@ -187,6 +190,139 @@ function initializeDatabase(db: Database.Database) {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
       UNIQUE(user_id, note_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS note_collections (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(user_id, name)
+    );
+
+    CREATE TABLE IF NOT EXISTS collection_notes (
+      collection_id TEXT NOT NULL,
+      note_id TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (collection_id, note_id),
+      FOREIGN KEY (collection_id) REFERENCES note_collections(id) ON DELETE CASCADE,
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS note_versions (
+      id TEXT PRIMARY KEY,
+      note_id TEXT NOT NULL,
+      version_number INTEGER NOT NULL,
+      snapshot_json TEXT NOT NULL,
+      changed_by TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+      FOREIGN KEY (changed_by) REFERENCES users(id),
+      UNIQUE(note_id, version_number)
+    );
+
+    CREATE TABLE IF NOT EXISTS note_downloads (
+      id TEXT PRIMARY KEY,
+      note_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS flashcard_reviews (
+      user_id TEXT NOT NULL,
+      note_id TEXT NOT NULL,
+      card_index INTEGER NOT NULL,
+      repetitions INTEGER NOT NULL DEFAULT 0,
+      interval_days INTEGER NOT NULL DEFAULT 0,
+      ease_factor REAL NOT NULL DEFAULT 2.5,
+      next_review_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_reviewed_at TEXT,
+      PRIMARY KEY (user_id, note_id, card_index),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS note_ai_chat (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      note_id TEXT NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('user', 'assistant')),
+      content TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS study_tasks (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      due_at TEXT NOT NULL,
+      course_id TEXT,
+      note_id TEXT,
+      is_done INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL,
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS study_sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      duration_minutes INTEGER NOT NULL,
+      task_id TEXT,
+      started_at TEXT NOT NULL,
+      completed_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (task_id) REFERENCES study_tasks(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS user_goals (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      goal_type TEXT NOT NULL CHECK(goal_type IN ('upload', 'download', 'study_minutes')),
+      target INTEGER NOT NULL,
+      period_start TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(user_id, goal_type, period_start)
+    );
+
+    CREATE TABLE IF NOT EXISTS comment_votes (
+      user_id TEXT NOT NULL,
+      comment_id TEXT NOT NULL,
+      vote INTEGER NOT NULL CHECK(vote IN (1, -1)),
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, comment_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS user_follows (
+      follower_id TEXT NOT NULL,
+      followed_id TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (follower_id, followed_id),
+      CHECK(follower_id != followed_id),
+      FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (followed_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS notification_preferences (
+      user_id TEXT PRIMARY KEY,
+      comments INTEGER NOT NULL DEFAULT 1,
+      messages INTEGER NOT NULL DEFAULT 1,
+      forum_replies INTEGER NOT NULL DEFAULT 1,
+      note_updates INTEGER NOT NULL DEFAULT 1,
+      followed_users INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS ratings (
@@ -250,6 +386,16 @@ function initializeDatabase(db: Database.Database) {
       message TEXT NOT NULL,
       link TEXT,
       is_read INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
@@ -403,12 +549,16 @@ function initializeDatabase(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
     CREATE INDEX IF NOT EXISTS idx_reports_note ON reports(note_id);
     CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read);
+    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_target ON audit_logs(target, target_id);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at);
   `);
 
   ensureColumn(db, 'users', 'last_seen', 'TEXT');
+  ensureColumn(db, 'users', 'email_verify_expires', 'TEXT');
+  ensureColumn(db, 'users', 'email_verification_sent_at', 'TEXT');
+  ensureColumn(db, 'notes', 'is_handwritten', 'INTEGER DEFAULT 0');
   ensureColumn(db, 'comments', 'parent_id', 'TEXT');
   ensureColumn(db, 'reports', 'target_type', "TEXT DEFAULT 'note'");
   ensureColumn(db, 'reports', 'target_id', 'TEXT');
