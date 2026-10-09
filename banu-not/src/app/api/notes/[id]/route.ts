@@ -69,12 +69,15 @@ export async function GET(
     const comments = db.prepare(`
       SELECT c.*, u.display_name as user_display_name, u.avatar_url as user_avatar,
              (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.id) as like_count,
-             EXISTS (SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_id = ?) as user_liked
+             EXISTS (SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_id = ?) as user_liked,
+             (SELECT COUNT(*) FROM comment_votes cv WHERE cv.comment_id = c.id AND cv.vote = 1) as helpful_count,
+             (SELECT COUNT(*) FROM comment_votes cv WHERE cv.comment_id = c.id AND cv.vote = -1) as unhelpful_count,
+             (SELECT cv.vote FROM comment_votes cv WHERE cv.comment_id = c.id AND cv.user_id = ?) as user_vote
       FROM comments c
       JOIN users u ON c.user_id = u.id
       WHERE c.note_id = ? AND c.is_hidden = 0
       ORDER BY c.created_at ASC
-    `).all(userId || '', id);
+    `).all(userId || '', userId || '', userId || '', id);
 
     // Increment view
     db.prepare('UPDATE notes SET view_count = view_count + 1 WHERE id = ?').run(id);

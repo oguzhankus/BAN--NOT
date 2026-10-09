@@ -304,6 +304,9 @@ export default function Header() {
                       <Link href="/kaydedilenler" className="flex items-center gap-3 px-4 py-2.5 text-sm text-navy-700 hover:bg-navy-50 transition-colors">
                         <Bookmark className="w-4 h-4" /> Kaydedilenler
                       </Link>
+                      <Link href="/ayarlar/bildirimler" className="flex items-center gap-3 px-4 py-2.5 text-sm text-navy-700 hover:bg-navy-50 transition-colors">
+                        <Bell className="w-4 h-4" /> Bildirim Tercihleri
+                      </Link>
                       {isAdmin && (
                         <>
                           <div className="border-t border-navy-100 my-1" />

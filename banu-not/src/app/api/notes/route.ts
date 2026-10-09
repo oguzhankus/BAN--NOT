@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
         n.description LIKE ? COLLATE NOCASE OR 
         n.topic LIKE ? COLLATE NOCASE OR
         n.course_code LIKE ? COLLATE NOCASE OR
+        n.ocr_text LIKE ? COLLATE NOCASE OR
         c.name LIKE ? COLLATE NOCASE
       )`;
       
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
         .replace(/[çÇcC]/g, '_');
         
       const searchTerm = `%${wildcardSearch}%`;
-      params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
     }
 
     if (universityId) {

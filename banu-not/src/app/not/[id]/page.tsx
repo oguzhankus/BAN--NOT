@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Download, Heart, Star, MessageSquare, Flag, Share2, FileText,
+  Download, Heart, Star, MessageSquare, Flag, Share2, FileText, ThumbsUp, ThumbsDown,
   Calendar, Eye, Send, ChevronRight, Trash2, Sparkles, BadgeCheck, History, Pencil, X, FileUp
 } from 'lucide-react';
 import { getNoteTypeLabel, getSemesterLabel, formatFileSize, formatDate, timeAgo, REPORT_REASONS } from '@/lib/constants';
@@ -50,6 +50,27 @@ export default function NoteDetailPage() {
         }));
       }
     } catch (e) {}
+  };
+
+  const handleCommentVote = async (commentId: string, vote: 1 | -1) => {
+    if (!user) { showToast('Yorumu değerlendirmek için giriş yapmalısınız.', 'error'); return; }
+    try {
+      const response = await fetch('/api/comments/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commentId, vote }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Oy kaydedilemedi.');
+      setNote((previous: any) => ({
+        ...previous,
+        comments: previous.comments.map((item: any) => item.id === commentId
+          ? { ...item, helpful_count: result.data.helpfulCount, unhelpful_count: result.data.unhelpfulCount, user_vote: result.data.userVote }
+          : item),
+      }));
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Oy kaydedilemedi.', 'error');
+    }
   };
 
   const handleCommentDelete = async (commentId: string) => {
@@ -669,6 +690,12 @@ export default function NoteDetailPage() {
                     </div>
                     <p className="text-sm text-navy-600 mt-0.5">{c.content}</p>
                     <div className="flex items-center gap-3 mt-2 text-xs font-medium">
+                      <button onClick={() => void handleCommentVote(c.id, 1)} className={`flex items-center gap-1 ${c.user_vote === 1 ? 'text-teal-700' : 'text-navy-500 hover:text-teal-700'}`} aria-label="Yorumu yararlı bul">
+                        <ThumbsUp className="h-3.5 w-3.5" /> {c.helpful_count || 0}
+                      </button>
+                      <button onClick={() => void handleCommentVote(c.id, -1)} className={`flex items-center gap-1 ${c.user_vote === -1 ? 'text-red-600' : 'text-navy-500 hover:text-red-600'}`} aria-label="Yorumu yararsız bul">
+                        <ThumbsDown className="h-3.5 w-3.5" /> {c.unhelpful_count || 0}
+                      </button>
                       <button onClick={() => handleCommentLike(c.id)} className={`flex items-center gap-1 ${c.user_liked ? 'text-teal-600' : 'text-navy-500 hover:text-navy-700'}`}>
                         <Heart className={`w-3.5 h-3.5 ${c.user_liked ? 'fill-teal-600' : ''}`} /> {c.like_count || 0}
                       </button>
@@ -702,6 +729,12 @@ export default function NoteDetailPage() {
                           </div>
                           <p className="text-sm text-navy-600 mt-0.5">{reply.content}</p>
                           <div className="flex items-center gap-3 mt-1.5 text-xs font-medium">
+                            <button onClick={() => void handleCommentVote(reply.id, 1)} className={`flex items-center gap-1 ${reply.user_vote === 1 ? 'text-teal-700' : 'text-navy-500 hover:text-teal-700'}`} aria-label="Yanıtı yararlı bul">
+                              <ThumbsUp className="h-3.5 w-3.5" /> {reply.helpful_count || 0}
+                            </button>
+                            <button onClick={() => void handleCommentVote(reply.id, -1)} className={`flex items-center gap-1 ${reply.user_vote === -1 ? 'text-red-600' : 'text-navy-500 hover:text-red-600'}`} aria-label="Yanıtı yararsız bul">
+                              <ThumbsDown className="h-3.5 w-3.5" /> {reply.unhelpful_count || 0}
+                            </button>
                             <button onClick={() => handleCommentLike(reply.id)} className={`flex items-center gap-1 ${reply.user_liked ? 'text-teal-600' : 'text-navy-500 hover:text-navy-700'}`}>
                               <Heart className={`w-3.5 h-3.5 ${reply.user_liked ? 'fill-teal-600' : ''}`} /> {reply.like_count || 0}
                             </button>

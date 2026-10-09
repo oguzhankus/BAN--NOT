@@ -1,32 +1,56 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { MessageCircle, ThumbsUp, ThumbsDown, CheckCircle, Clock, ChevronLeft, Send, AlertTriangle } from 'lucide-react';
+import { MessageCircle, ThumbsUp, ThumbsDown, CheckCircle, Clock, ChevronLeft, Send } from 'lucide-react';
 import { useToast } from '@/components/Toast';
+
+type ForumPost = {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string;
+  created_at: string;
+  user_name: string;
+  avatar_url: string | null;
+  course_code: string | null;
+  faculty_name: string | null;
+  is_resolved: number;
+  upvotes: number;
+  downvotes: number;
+};
+
+type ForumReply = {
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  user_name: string;
+  avatar_url: string | null;
+  role: string;
+  is_accepted: number;
+  upvotes: number;
+  downvotes: number;
+};
 
 export default function ForumPostPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { data: session } = useSession();
   const { showToast } = useToast();
-  const [post, setPost] = useState<any>(null);
-  const [replies, setReplies] = useState<any[]>([]);
+  const [post, setPost] = useState<ForumPost | null>(null);
+  const [replies, setReplies] = useState<ForumReply[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [replyContent, setReplyContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchPost();
-  }, [params.id]);
-
-  async function fetchPost() {
+  const fetchPost = useCallback(async () => {
     try {
       const res = await fetch(`/api/forum/${params.id}`);
-      const data = await res.json();
-      if (data.success) {
+      const data = await res.json() as { success: boolean; data?: { post: ForumPost; replies: ForumReply[] }; error?: string };
+      if (data.success && data.data) {
         setPost(data.data.post);
         setReplies(data.data.replies);
       } else {
@@ -38,7 +62,11 @@ export default function ForumPostPage({ params }: { params: { id: string } }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [params.id, router, showToast]);
+
+  useEffect(() => {
+    void Promise.resolve().then(fetchPost);
+  }, [fetchPost]);
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +81,7 @@ export default function ForumPostPage({ params }: { params: { id: string } }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: replyContent })
       });
-      const data = await res.json();
+      const data = await res.json() as { success: boolean; error?: string };
       if (data.success) {
         showToast('Cevabınız eklendi!');
         setReplyContent('');
@@ -82,7 +110,7 @@ export default function ForumPostPage({ params }: { params: { id: string } }) {
       const result = await response.json();
       if (!response.ok || !result.success) throw new Error(result.error || 'Oy kaydedilemedi.');
       const counts = result.data as { upvotes: number; downvotes: number };
-      if (targetType === 'post') setPost((current: any) => ({ ...current, upvotes: counts.upvotes, downvotes: counts.downvotes }));
+      if (targetType === 'post') setPost(current => current ? ({ ...current, upvotes: counts.upvotes, downvotes: counts.downvotes }) : current);
       else setReplies(current => current.map(reply => reply.id === targetId ? { ...reply, upvotes: counts.upvotes, downvotes: counts.downvotes } : reply));
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Oy kaydedilemedi.', 'error');
@@ -96,7 +124,7 @@ export default function ForumPostPage({ params }: { params: { id: string } }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ replyId }),
       });
-      const result = await response.json();
+      const result = await response.json() as { success: boolean; error?: string };
       if (!response.ok || !result.success) throw new Error(result.error || 'Çözüm işaretlenemedi.');
       showToast('Cevap çözüm olarak işaretlendi.');
       await fetchPost();
@@ -111,7 +139,7 @@ export default function ForumPostPage({ params }: { params: { id: string } }) {
   return (
     <div className="container-app py-8 max-w-4xl mx-auto">
       <Link href="/soru-cevap" className="inline-flex items-center text-sm font-medium text-navy-500 hover:text-navy-900 mb-6 transition-colors">
-        <ChevronLeft className="w-4 h-4 mr-1" /> Forum'a Dön
+        <ChevronLeft className="w-4 h-4 mr-1" /> Forum&apos;a Dön
       </Link>
 
       {/* Main Post */}
@@ -198,7 +226,7 @@ export default function ForumPostPage({ params }: { params: { id: string } }) {
                   <button type="button" onClick={() => void vote('reply', reply.id, -1)} className="inline-flex items-center gap-1 rounded-lg border border-navy-100 px-3 py-1.5 text-xs text-navy-600 hover:bg-red-50 hover:text-red-700" aria-label="Cevabı yararsız bul">
                     <ThumbsDown className="h-3.5 w-3.5" /> {reply.downvotes || 0}
                   </button>
-                  {session?.user && ((session.user as any).id === post.user_id || ['admin', 'moderator'].includes((session.user as any).role)) && reply.is_accepted !== 1 && (
+                  {session?.user && (((session.user as typeof session.user & { id?: string; role?: string }).id === post.user_id) || ['admin', 'moderator'].includes((session.user as typeof session.user & { id?: string; role?: string }).role || '')) && reply.is_accepted !== 1 && (
                     <button type="button" onClick={() => void acceptReply(reply.id)} className="ml-auto inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
                       <CheckCircle className="h-3.5 w-3.5" /> En iyi cevap
                     </button>

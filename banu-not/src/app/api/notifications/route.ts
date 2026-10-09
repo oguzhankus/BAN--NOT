@@ -11,12 +11,26 @@ export async function GET() {
     const db = await ensureDb();
     const userId = (session.user as any).id;
 
-    const notifications = db.prepare(`
+    db.prepare('INSERT OR IGNORE INTO notification_preferences (user_id) VALUES (?)').run(userId);
+    const preferences = db.prepare(`
+      SELECT comments, messages, forum_replies, note_updates, followed_users
+      FROM notification_preferences WHERE user_id = ?
+    `).get(userId) as { comments: number; messages: number; forum_replies: number; note_updates: number; followed_users: number };
+    const allNotifications = db.prepare(`
       SELECT * FROM notifications 
       WHERE user_id = ? 
       ORDER BY created_at DESC 
       LIMIT 50
-    `).all(userId);
+    `).all(userId) as { type: string; [key: string]: unknown }[];
+    const categoryEnabled: Record<string, boolean> = {
+      comment: Boolean(preferences.comments),
+      message: Boolean(preferences.messages),
+      forum_reply: Boolean(preferences.forum_replies),
+      forum_solution: Boolean(preferences.forum_replies),
+      note_updated: Boolean(preferences.note_updates),
+      followed_note: Boolean(preferences.followed_users),
+    };
+    const notifications = allNotifications.filter(item => categoryEnabled[item.type] !== false);
 
     const unreadMessagesCount = db.prepare(`
       SELECT COUNT(*) as count FROM messages 

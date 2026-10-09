@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -34,6 +34,11 @@ export default function StudyPlanPage() {
   const [selectedTaskId, setSelectedTaskId] = useState('');
   const [weeklyMinutes, setWeeklyMinutes] = useState(0);
   const [weeklySessions, setWeeklySessions] = useState(0);
+  const secondsLeftRef = useRef(FOCUS_SECONDS);
+
+  useEffect(() => {
+    secondsLeftRef.current = secondsLeft;
+  }, [secondsLeft]);
 
   const loadPlan = useCallback(async () => {
     try {
@@ -58,16 +63,14 @@ export default function StudyPlanPage() {
   useEffect(() => {
     if (!running) return;
     const timer = window.setInterval(() => {
-      setSecondsLeft(current => {
-        if (current > 1) return current - 1;
+      if (secondsLeftRef.current <= 1) {
         window.clearInterval(timer);
         setRunning(false);
         if (!onBreak) {
-          const durationMinutes = Math.ceil(FOCUS_SECONDS / 60);
           void fetch('/api/study-sessions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ durationMinutes, taskId: selectedTaskId || undefined }),
+            body: JSON.stringify({ durationMinutes: 25, taskId: selectedTaskId || undefined }),
           }).then(async response => {
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || 'Oturum kaydedilemedi.');
@@ -81,8 +84,10 @@ export default function StudyPlanPage() {
           setSecondsLeft(FOCUS_SECONDS);
           showToast('Mola bitti. Yeni bir odak oturumuna başlayabilirsin.');
         }
-        return 0;
-      });
+        return;
+      }
+      secondsLeftRef.current -= 1;
+      setSecondsLeft(secondsLeftRef.current);
     }, 1000);
     return () => window.clearInterval(timer);
   }, [running, onBreak, selectedTaskId, loadPlan, showToast]);
@@ -134,7 +139,7 @@ export default function StudyPlanPage() {
   }
 
   const visibleTasks = selectedTaskId ? tasks.filter(task => task.id === selectedTaskId) : tasks;
-  const displaySeconds = secondsLeft === 0 && running ? 0 : secondsLeft;
+  const displaySeconds = secondsLeft;
   const timeLabel = `${String(Math.floor(displaySeconds / 60)).padStart(2, '0')}:${String(displaySeconds % 60).padStart(2, '0')}`;
 
   if (status === 'loading' || loading) {
@@ -178,7 +183,7 @@ export default function StudyPlanPage() {
               {running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               {running ? 'Duraklat' : 'Başlat'}
             </button>
-            <button type="button" className="btn btn-secondary" onClick={() => { setRunning(false); setOnBreak(false); setSecondsLeft(FOCUS_SECONDS); }}>
+            <button type="button" className="btn btn-secondary" onClick={() => { setRunning(false); setOnBreak(false); secondsLeftRef.current = FOCUS_SECONDS; setSecondsLeft(FOCUS_SECONDS); }}>
               <RotateCcw className="h-4 w-4" /> Sıfırla
             </button>
           </div>

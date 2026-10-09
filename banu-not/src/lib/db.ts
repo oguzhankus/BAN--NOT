@@ -283,17 +283,6 @@ function initializeDatabase(db: Database.Database) {
       FOREIGN KEY (task_id) REFERENCES study_tasks(id) ON DELETE SET NULL
     );
 
-    CREATE TABLE IF NOT EXISTS user_goals (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      goal_type TEXT NOT NULL CHECK(goal_type IN ('upload', 'download', 'study_minutes')),
-      target INTEGER NOT NULL,
-      period_start TEXT NOT NULL,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(user_id, goal_type, period_start)
-    );
-
     CREATE TABLE IF NOT EXISTS comment_votes (
       user_id TEXT NOT NULL,
       comment_id TEXT NOT NULL,
@@ -302,16 +291,6 @@ function initializeDatabase(db: Database.Database) {
       PRIMARY KEY (user_id, comment_id),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS user_follows (
-      follower_id TEXT NOT NULL,
-      followed_id TEXT NOT NULL,
-      created_at TEXT DEFAULT (datetime('now')),
-      PRIMARY KEY (follower_id, followed_id),
-      CHECK(follower_id != followed_id),
-      FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (followed_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS notification_preferences (
@@ -559,6 +538,7 @@ function initializeDatabase(db: Database.Database) {
   ensureColumn(db, 'users', 'email_verify_expires', 'TEXT');
   ensureColumn(db, 'users', 'email_verification_sent_at', 'TEXT');
   ensureColumn(db, 'notes', 'is_handwritten', 'INTEGER DEFAULT 0');
+  ensureColumn(db, 'notes', 'ocr_text', 'TEXT');
   ensureColumn(db, 'comments', 'parent_id', 'TEXT');
   ensureColumn(db, 'reports', 'target_type', "TEXT DEFAULT 'note'");
   ensureColumn(db, 'reports', 'target_id', 'TEXT');

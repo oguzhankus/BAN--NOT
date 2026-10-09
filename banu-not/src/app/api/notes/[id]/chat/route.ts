@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth';
 import { ensureDb, errorResponse, successResponse } from '@/lib/api-utils';
 
 type SessionUser = { id: string };
-type NoteContext = { title: string; description: string | null; topic: string | null };
+type NoteContext = { title: string; description: string | null; topic: string | null; ocr_text: string | null };
 type HistoryRow = { role: 'user' | 'assistant'; content: string };
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const db = await ensureDb();
     const userId = (session.user as SessionUser).id;
     const note = db.prepare(`
-      SELECT title, description, topic FROM notes WHERE id = ? AND status = 'published'
+      SELECT title, description, topic, ocr_text FROM notes WHERE id = ? AND status = 'published'
     `).get(noteId) as NoteContext | undefined;
     if (!note) return errorResponse('Not bulunamadı.', 404);
 
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (recentCount.count >= 8) return errorResponse('Çok hızlı mesaj gönderiyorsunuz. Biraz bekleyip tekrar deneyin.', 429);
 
     const summary = db.prepare('SELECT summary FROM note_ai_analysis WHERE note_id = ?').get(noteId) as { summary: string | null } | undefined;
-    const context = `Başlık: ${note.title}\nKonu: ${note.topic || 'Belirtilmemiş'}\nAçıklama: ${note.description || 'Yok'}\nYapay zeka özeti: ${summary?.summary || 'Henüz oluşturulmamış'}`;
+    const context = `Başlık: ${note.title}\nKonu: ${note.topic || 'Belirtilmemiş'}\nAçıklama: ${note.description || 'Yok'}\nÇıkarılan not metni: ${(note.ocr_text || '').slice(0, 8000) || 'Yok'}\nYapay zeka özeti: ${summary?.summary || 'Henüz oluşturulmamış'}`;
     const previous = db.prepare(`
       SELECT role, content FROM note_ai_chat
       WHERE user_id = ? AND note_id = ?
