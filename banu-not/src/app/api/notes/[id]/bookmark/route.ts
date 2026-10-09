@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,7 +15,7 @@ export async function POST(
     }
     const userId = (session.user as any).id;
     const db = await ensureDb();
-    const noteId = params.id;
+    const { id: noteId } = await params;
 
     // Check if exists
     const existing = db.prepare('SELECT id FROM bookmarks WHERE user_id = ? AND note_id = ?').get(userId, noteId);
@@ -37,7 +37,7 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -46,7 +46,7 @@ export async function GET(
     }
     const userId = (session.user as any).id;
     const db = await ensureDb();
-    const noteId = params.id;
+    const { id: noteId } = await params;
 
     const existing = db.prepare('SELECT id FROM bookmarks WHERE user_id = ? AND note_id = ?').get(userId, noteId);
     return successResponse({ bookmarked: !!existing });

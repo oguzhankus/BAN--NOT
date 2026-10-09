@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:seed": "node scripts/seed-database.mjs",
+    "test:live": "node scripts/live-smoke.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

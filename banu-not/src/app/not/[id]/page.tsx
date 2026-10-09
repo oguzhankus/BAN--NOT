@@ -16,7 +16,8 @@ import NoteCard from '@/components/NoteCard';
 import AiAnalysis from '@/components/AiAnalysis';
 
 export default function NoteDetailPage() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
   const { data: session } = useSession();
   const router = useRouter();
   const { showToast } = useToast();
@@ -587,7 +588,7 @@ export default function NoteDetailPage() {
           </button>
         )}
         {user && (
-          <button onClick={() => { setReportTargetId(id); setReportTargetType('note'); setShowReport(true); }} className="btn btn-ghost btn-sm text-navy-500">
+          <button onClick={() => { setReportTargetId(id || null); setReportTargetType('note'); setShowReport(true); }} className="btn btn-ghost btn-sm text-navy-500">
             <Flag className="w-4 h-4" /> Bildir
           </button>
         )}

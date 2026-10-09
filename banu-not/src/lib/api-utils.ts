@@ -7,14 +7,16 @@ let initialized = false;
 
 export async function ensureDb() {
   if (!initialized) {
-    const db = getDb();
-    await seedDatabase();
+    getDb();
+    if (process.env.NODE_ENV !== 'production') {
+      await seedDatabase();
+    }
     initialized = true;
   }
   return getDb();
 }
 
-export function successResponse(data: any, status = 200) {
+export function successResponse<T>(data: T, status = 200) {
   return NextResponse.json({ success: true, data }, { status });
 }
 

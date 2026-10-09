@@ -36,6 +36,7 @@ export default function Footer() {
             <h3 className="text-sm font-semibold text-white mb-4">Hızlı Bağlantılar</h3>
             <ul className="space-y-2.5">
               <li><Link href="/kesfet" className="text-sm hover:text-teal-400 transition-colors">Keşfet</Link></li>
+              <li><Link href="/soru-cevap" className="text-sm hover:text-teal-400 transition-colors">Soru-Cevap</Link></li>
               <li><Link href="/dersler" className="text-sm hover:text-teal-400 transition-colors">Dersler</Link></li>
               <li><Link href="/liderlik-tablosu" className="text-sm hover:text-teal-400 transition-colors">Liderlik Tablosu</Link></li>
               <li><Link href="/nasil-calisir" className="text-sm hover:text-teal-400 transition-colors">Nasıl Çalışır</Link></li>

@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BANÜ NOT
 
-## Getting Started
+Bandırma Onyedi Eylül Üniversitesi öğrencileri için ders notu paylaşım ve akademik dayanışma platformu. Uygulama Next.js App Router, SQLite ve NextAuth kullanır.
 
-First, run the development server:
+## Gereksinimler
 
-```bash
+- Node.js 22 veya üzeri
+- npm
+
+## Yerel geliştirme
+
+```powershell
+npm ci
+Copy-Item .env.example .env
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Uygulama [http://localhost:3000](http://localhost:3000) adresinde açılır. Geliştirme ortamında veritabanı ilk API isteğinde oluşturulur ve boşsa demo verileri eklenir. Varsayılan SQLite dosyası `data/banunot.db` konumundadır; `BANUNOT_DB_PATH` ile başka bir dosya yolu seçilebilir.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+İlk yerel kurulumda demo verisini açıkça eklemek için:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```powershell
+npm run db:seed
+```
 
-## Learn More
+Seed komutu var olan bir üniversite kaydı bulursa veriyi tekrar eklemez. Demo seed; `admin@banunot.com`, `elif@ornek.com`, `ahmet@ornek.com` ve `zeynep@ornek.com` hesaplarını `demo1234` parolasıyla oluşturur. Bu hesaplar yalnızca yerel geliştirme ve izole test veritabanı içindir; üretim ortamında demo seed çalıştırılmaz.
 
-To learn more about Next.js, take a look at the following resources:
+Bir kullanıcı hesabını yönetici yapmak için önce site üzerinden hesap oluşturun, ardından proje dizininde çalıştırın:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```powershell
+node make-admin.js kullanici@ogr.bandirma.edu.tr
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Komut varsayılan SQLite dosyasını kullanır; farklı bir veritabanı seçtiyseniz `BANUNOT_DB_PATH` değerini de verin. Rol değişikliğinden sonra hesabın oturumunu kapatıp yeniden açması gerekir.
 
-## Deploy on Vercel
+## Ortam değişkenleri
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`.env.example` dosyasındaki değerleri kendi ortamınıza göre düzenleyin:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Değişken | Amaç |
+| --- | --- |
+| `NEXTAUTH_SECRET` | Oturum imzalama anahtarı; üretimde güçlü ve gizli bir değer kullanın. |
+| `NEXTAUTH_URL` | Uygulamanın kök adresi. |
+| `BANUNOT_DB_PATH` | Çalışma zamanındaki SQLite dosyası; varsayılan `./data/banunot.db`. |
+| `DATABASE_URL` | Prisma şemasının SQLite bağlantısı; şema `prisma/` altında olduğu için örnek yol `file:../data/banunot.db` şeklindedir. |
+| `UPLOAD_DIR` | Kullanıcı dosyalarının kalıcı olarak saklanacağı dizin. |
+| `MAX_FILE_SIZE_MB` | Yükleme boyutu sınırı. |
+| `GEMINI_API_KEY` | İsteğe bağlı yapay zekâ not analizi. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | İsteğe bağlı Google ile giriş. |
+
+Uygulamanın çalışma zamanı SQLite erişimi `BANUNOT_DB_PATH` kullanır. Prisma CLI kullanıldığında `.env` içindeki `DATABASE_URL` değerini aynı veritabanını gösterecek şekilde tutun.
+
+## Veritabanı ve seed
+
+- Tablolar uygulamanın ilk açılışında `CREATE TABLE IF NOT EXISTS` ile hazırlanır.
+- Önceki kurulumlardan kalan SQLite dosyaları için eksik sütunlar açılışta geriye uyumlu biçimde eklenir.
+- Demo seed tek transaction içinde çalışır; hata oluşursa yarım demo veri bırakmaz.
+- Seed kayıtları tekrarlanabilir ve gerçek dosya olmayan sahte PDF referansları oluşturmaz.
+- Üretim veritabanı otomatik demo kullanıcılarıyla doldurulmaz. Üretimde yönetici hesabı için kullanıcı kaydı ve `make-admin.js` akışını kullanın.
+
+Mevcut kullanıcı verisini değiştirmeden önce SQLite dosyasının yedeğini alın. `BANUNOT_DB_PATH` ayarını değiştirmeniz uygulamanın kullandığı veritabanını değiştirir.
+
+## Kalite kontrolleri
+
+```powershell
+npm run lint
+npm run build
+```
+
+Üretim derlemesi ve geçici SQLite veritabanıyla gerçek HTTP istekleri yapan canlı smoke test akışı:
+
+```powershell
+npm run test:live
+```
+
+Bu komut izole bir demo veritabanı oluşturur, production build alır, Next.js sunucusunu geçici bir portta başlatır; ana sayfa, akademik katalog, not API'si, auth sağlayıcıları, admin sayfası ve yetkisiz admin erişimini doğruladıktan sonra test sunucusunu ve geçici veriyi temizler.
+
+Çalışan başka bir ortama karşı yalnızca smoke testleri yürütmek için:
+
+```powershell
+$env:LIVE_TEST_URL = "https://test.example.com"
+npm run test:live
+```
+
+GitHub Actions, her push ve pull request'te lint ile izole canlı smoke testini çalıştırır.
+
+## Üretim notları
+
+Uygulamanın SQLite veritabanı ve `UPLOAD_DIR` dizini dağıtımlar arasında kalıcı diskte tutulmalıdır. Geçici dosya sistemi kullanan serverless ortamlarda yerel SQLite ve dosya yükleme depolaması kalıcı olmayabilir; bu durumda dağıtım öncesinde kalıcı veritabanı/dosya depolaması yapılandırın.

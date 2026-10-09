@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MessageSquare, Send, User, ChevronLeft, Check, CheckCheck } from 'lucide-react';
 import { timeAgo } from '@/lib/constants';
 
-export default function MessagesPage() {
+function MessagesPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -234,5 +234,13 @@ export default function MessagesPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={<div className="container-app py-8">Yükleniyor...</div>}>
+      <MessagesPageContent />
+    </Suspense>
   );
 }

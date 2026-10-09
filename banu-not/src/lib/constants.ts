@@ -1,3 +1,25 @@
+export const UNIVERSITY = {
+  name: 'Bandırma Onyedi Eylül Üniversitesi',
+  shortName: 'BANÜ',
+} as const;
+
+export const DAILY_QUOTES = [
+  { text: 'Başarı, her gün tekrarlanan küçük çabaların toplamıdır.', author: 'Robert Collier' },
+  { text: 'Öğrenmek, aklın gıdasıdır; düşünmek ise onun sindirimidir.', author: 'Leonardo da Vinci' },
+  { text: 'Bugünün acısı, yarının gücüdür.', author: 'Anonim' },
+  { text: 'Bilgi paylaştıkça çoğalır.', author: 'Anonim' },
+  { text: 'Disiplin, hedefler ile başarı arasındaki köprüdür.', author: 'Jim Rohn' },
+  { text: 'Vize haftası geçer, notlar kalır — paylaş ki herkes kazansın.', author: 'BANÜ NOT' },
+  { text: 'Yapabileceğinin en iyisini yap; kimse daha fazlasını yapamaz.', author: 'John Wooden' },
+] as const;
+
+export function getDailyQuote() {
+  const dayIndex = Math.floor(
+    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24)
+  );
+  return DAILY_QUOTES[dayIndex % DAILY_QUOTES.length];
+}
+
 export const NOTE_TYPES = [
   { value: 'ders_notu', label: 'Ders Notu' },
   { value: 'ozet', label: 'Özet' },

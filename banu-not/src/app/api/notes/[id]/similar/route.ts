@@ -12,7 +12,7 @@ export async function GET(
     const note = db.prepare('SELECT course_id, department_id, faculty_id FROM notes WHERE id = ?').get(id) as any;
     if (!note) return errorResponse('Not bulunamadı', 404);
 
-    let similarNotes = [];
+    let similarNotes: { id: string }[] = [];
 
     // Try finding by course
     if (note.course_id) {
@@ -22,7 +22,7 @@ export async function GET(
         LEFT JOIN users u ON n.user_id = u.id
         WHERE n.course_id = ? AND n.id != ? AND n.status = 'published'
         ORDER BY n.created_at DESC LIMIT 3
-      `).all(note.course_id, id);
+      `).all(note.course_id, id) as { id: string }[];
     }
 
     // If not enough, try by department
@@ -34,7 +34,7 @@ export async function GET(
         WHERE n.department_id = ? AND n.id != ? AND n.status = 'published'
         ${similarNotes.length > 0 ? `AND n.id NOT IN (${similarNotes.map(n => `'${n.id}'`).join(',')})` : ''}
         ORDER BY n.created_at DESC LIMIT ?
-      `).all(note.department_id, id, 3 - similarNotes.length);
+      `).all(note.department_id, id, 3 - similarNotes.length) as { id: string }[];
       similarNotes = [...similarNotes, ...more];
     }
 
@@ -47,7 +47,7 @@ export async function GET(
         WHERE n.faculty_id = ? AND n.id != ? AND n.status = 'published'
         ${similarNotes.length > 0 ? `AND n.id NOT IN (${similarNotes.map(n => `'${n.id}'`).join(',')})` : ''}
         ORDER BY n.created_at DESC LIMIT ?
-      `).all(note.faculty_id, id, 3 - similarNotes.length);
+      `).all(note.faculty_id, id, 3 - similarNotes.length) as { id: string }[];
       similarNotes = [...similarNotes, ...more];
     }
 

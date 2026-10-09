@@ -5,11 +5,12 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BottomNav from '@/components/BottomNav';
 import { ToastProvider } from '@/components/Toast';
+import { UNIVERSITY } from '@/lib/constants';
 
 export const metadata: Metadata = {
   title: 'BANÜ NOT — Ders Notları Paylaşım Platformu',
-  description: 'Balıkesir Üniversitesi öğrencileri için ders notları paylaşım platformu. Notlarını paylaş, keşfet ve başarını artır.',
-  keywords: 'ders notu, üniversite, Balıkesir Üniversitesi, BANÜ, not paylaşım, öğrenci',
+  description: `${UNIVERSITY.name} öğrencileri için ders notları paylaşım platformu. Notlarını paylaş, keşfet ve başarını artır.`,
+  keywords: `ders notu, üniversite, ${UNIVERSITY.name}, ${UNIVERSITY.shortName}, not paylaşım, öğrenci`,
   openGraph: {
     title: 'BANÜ NOT — Ders Notları Paylaşım Platformu',
     description: 'Üniversite öğrencileri için not paylaşım platformu',

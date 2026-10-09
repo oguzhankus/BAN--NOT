@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { useToast } from '@/components/Toast';
 import {
   Search, Filter, X, ChevronDown, SlidersHorizontal,
   BookOpen, ArrowUpDown, ChevronLeft, ChevronRight
@@ -12,6 +14,15 @@ import { NOTE_TYPES, SEMESTERS } from '@/lib/constants';
 function ExploreContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
+  const { showToast } = useToast();
+  const toast = useMemo(
+    () => ({
+      success: (message: string) => showToast(message, 'success'),
+      error: (message: string) => showToast(message, 'error'),
+    }),
+    [showToast]
+  );
 
   const [notes, setNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

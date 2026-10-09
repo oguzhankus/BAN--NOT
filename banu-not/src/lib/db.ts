@@ -1,14 +1,13 @@
 import Database from 'better-sqlite3';
+import fs from 'node:fs';
 import path from 'path';
 
-const DB_PATH = path.resolve(process.cwd(), 'data', 'banunot.db');
+const DB_PATH = path.resolve(process.cwd(), process.env.BANUNOT_DB_PATH || path.join('data', 'banunot.db'));
 
 let db: Database.Database;
 
 export function getDb(): Database.Database {
   if (!db) {
-    // Ensure data directory exists
-    const fs = require('fs');
     const dir = path.dirname(DB_PATH);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -369,6 +368,18 @@ function initializeDatabase(db: Database.Database) {
       UNIQUE(user_id, target_type, target_id)
     );
 
+    CREATE TABLE IF NOT EXISTS announcements (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      type TEXT DEFAULT 'info',
+      link TEXT,
+      is_active INTEGER DEFAULT 1,
+      created_by TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+
     -- Indexes
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
@@ -393,6 +404,23 @@ function initializeDatabase(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_audit_logs_target ON audit_logs(target, target_id);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at);
   `);
+
+  ensureColumn(db, 'users', 'last_seen', 'TEXT');
+  ensureColumn(db, 'comments', 'parent_id', 'TEXT');
+  ensureColumn(db, 'reports', 'target_type', "TEXT DEFAULT 'note'");
+  ensureColumn(db, 'reports', 'target_id', 'TEXT');
+  ensureColumn(db, 'note_files', 'file_hash', 'TEXT');
+  ensureColumn(db, 'note_ai_analysis', 'flashcards', 'TEXT');
+  ensureColumn(db, 'note_ai_analysis', 'quiz', 'TEXT');
+  ensureColumn(db, 'note_requests', 'fulfilled_by', 'TEXT');
+  ensureColumn(db, 'note_requests', 'fulfilled_note_id', 'TEXT');
+}
+
+function ensureColumn(db: Database.Database, table: string, column: string, definition: string) {
+  const columns = db.pragma(`table_info(${table})`) as { name: string }[];
+  if (!columns.some(existing => existing.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
 }
 
 export default getDb;

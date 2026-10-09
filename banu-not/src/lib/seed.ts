@@ -1,14 +1,14 @@
-import { getDb } from './db';
+import { getDb } from './db.ts';
 import bcrypt from 'bcryptjs';
 import { v4 as uuid } from 'uuid';
 
 export async function seedDatabase() {
   const db = getDb();
-  
-  // Check if already seeded
   const existingUni = db.prepare('SELECT id FROM universities LIMIT 1').get();
   if (existingUni) return;
 
+  const passwordHash = await bcrypt.hash('demo1234', 12);
+  const seed = db.transaction(() => {
   console.log('🌱 Veritabanı demo verileri oluşturuluyor...');
 
   // Create university
@@ -16,7 +16,7 @@ export async function seedDatabase() {
   db.prepare(`
     INSERT INTO universities (id, name, short_name, sort_order) 
     VALUES (?, ?, ?, ?)
-  `).run(uniId, 'Balıkesir Üniversitesi', 'BANÜ', 1);
+  `).run(uniId, 'Bandırma Onyedi Eylül Üniversitesi', 'BANÜ', 1);
 
   // Create faculties
   const faculties = [
@@ -117,8 +117,6 @@ export async function seedDatabase() {
   });
 
   // Create demo users
-  const passwordHash = await bcrypt.hash('demo1234', 12);
-  
   const adminId = uuid();
   const user1Id = uuid();
   const user2Id = uuid();
@@ -316,15 +314,20 @@ export async function seedDatabase() {
     },
   ];
 
+  const noteIds: { id: string }[] = [];
   demoNotes.forEach(note => {
     const noteId = uuid();
     const course = courses[note.courseIdx];
+    if (!course) {
+      throw new Error(`Demo seed ders referansı bulunamadı: ${note.courseIdx}`);
+    }
     insertNote.run(
       noteId, note.title, note.description, note.noteType,
       uniId, note.facId, note.deptId, course.id, course.code,
       note.semester, note.year, note.topic, note.userId,
       note.downloads, note.views, note.date
     );
+    noteIds.push({ id: noteId });
     note.tags.forEach(tagName => {
       if (tags[tagName]) {
         insertNoteTag.run(uuid(), noteId, tags[tagName]);
@@ -332,29 +335,17 @@ export async function seedDatabase() {
     });
   });
 
-  // Create demo note files (placeholder entries)
-  const noteIds = db.prepare('SELECT id FROM notes').all() as { id: string }[];
-  const insertNoteFile = db.prepare(`
-    INSERT INTO note_files (id, note_id, original_name, storage_path, storage_key, mime_type, file_size, scan_status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'clean')
-  `);
-
-  noteIds.forEach(({ id }) => {
-    const key = uuid();
-    insertNoteFile.run(uuid(), id, 'ornek-ders-notu.pdf', `uploads/${key}.pdf`, key, 'application/pdf', Math.floor(Math.random() * 3000000) + 500000);
-  });
-
   // Create some demo ratings
   const insertRating = db.prepare('INSERT INTO ratings (id, user_id, note_id, score) VALUES (?, ?, ?, ?)');
   
-  noteIds.slice(0, 5).forEach(({ id }) => {
-    insertRating.run(uuid(), user1Id, id, Math.floor(Math.random() * 2) + 4);
+  noteIds.slice(0, 5).forEach(({ id }, index) => {
+    insertRating.run(uuid(), user1Id, id, 4 + (index % 2));
   });
-  noteIds.slice(2, 8).forEach(({ id }) => {
-    try { insertRating.run(uuid(), user2Id, id, Math.floor(Math.random() * 2) + 3); } catch {}
+  noteIds.slice(2, 8).forEach(({ id }, index) => {
+    insertRating.run(uuid(), user2Id, id, 3 + (index % 2));
   });
-  noteIds.slice(0, 4).forEach(({ id }) => {
-    try { insertRating.run(uuid(), user3Id, id, Math.floor(Math.random() * 3) + 3); } catch {}
+  noteIds.slice(0, 4).forEach(({ id }, index) => {
+    insertRating.run(uuid(), user3Id, id, 3 + (index % 3));
   });
 
   // Create demo comments
@@ -388,6 +379,9 @@ export async function seedDatabase() {
   insertSetting.run(uuid(), 'max_upload_size_mb', '50', 'number', 'Maks. Dosya Boyutu (MB)', 'İzin verilen en büyük dosya boyutu.');
   insertSetting.run(uuid(), 'require_login_register', 'true', 'boolean', 'Kayıt Açık', 'Yeni kullanıcı kaydı açık mı?');
 
+  });
+
+  seed();
   console.log('✅ Demo verileri başarıyla oluşturuldu.');
   console.log('');
   console.log('📋 Demo hesaplar:');

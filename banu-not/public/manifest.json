@@ -1,7 +1,7 @@
 {
   "name": "BANÜ NOT - Ders Notları",
   "short_name": "BANÜ NOT",
-  "description": "Balıkesir Üniversitesi öğrencileri için ders notları paylaşım platformu.",
+  "description": "Bandırma Onyedi Eylül Üniversitesi öğrencileri için ders notları paylaşım platformu.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

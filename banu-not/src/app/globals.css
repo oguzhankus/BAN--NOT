@@ -96,7 +96,8 @@
   [data-theme='dark'] .card,
   [data-theme='dark'] .modal-content,
   [data-theme='dark'] .absolute.bg-white,
-  [data-theme='dark'] header.bg-white {
+  [data-theme='dark'] header.bg-white,
+  [data-theme='dark'] .dark-nav-bar {
     background-color: var(--color-navy-900) !important;
     border-color: var(--color-navy-800) !important;
     color: var(--color-navy-50) !important;
@@ -176,7 +177,12 @@
     font-weight: 500;
     line-height: 1.25rem;
     border-radius: 0.5rem;
-    transition: all 150ms ease;
+    transition:
+      color 150ms ease,
+      background-color 150ms ease,
+      border-color 150ms ease,
+      box-shadow 150ms ease,
+      transform 150ms cubic-bezier(0.23, 1, 0.32, 1);
     cursor: pointer;
     border: 1px solid transparent;
     white-space: nowrap;
@@ -186,6 +192,10 @@
   .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .btn:active:not(:disabled) {
+    transform: scale(0.97);
   }
 
   .btn-primary {
@@ -200,7 +210,7 @@
   }
 
   .btn-primary:active:not(:disabled) {
-    transform: translateY(0);
+    transform: scale(0.97);
   }
 
   .btn-secondary {
@@ -225,6 +235,9 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   }
 
+  .btn-teal:active:not(:disabled) {
+    transform: scale(0.97);
+  }
   .btn-danger {
     background-color: #dc2626;
     color: white;

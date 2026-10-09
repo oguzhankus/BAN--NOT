@@ -204,7 +204,10 @@ export default function GPACalculatorPage() {
                   step="0.01" min="0" max="4"
                   placeholder="Örn: 3.20"
                   value={currentGPA}
-                  onChange={(e) => setCurrentGPA(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setCurrentGPA(v === '' ? '' : Number(v));
+                  }}
                   className="input"
                 />
               </div>
@@ -215,7 +218,10 @@ export default function GPACalculatorPage() {
                   min="0"
                   placeholder="Örn: 90"
                   value={currentCredits}
-                  onChange={(e) => setCurrentCredits(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setCurrentCredits(v === '' ? '' : Number(v));
+                  }}
                   className="input"
                 />
               </div>

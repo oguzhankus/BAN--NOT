@@ -371,7 +371,13 @@ export default function Header() {
               </div>
             </form>
             <nav className="space-y-1" aria-label="Mobil navigasyon">
-              <Link href="/dersler" className="block px-3 py-2.5 rounded-lg text-sm font-medium text-navy-700 hover:bg-navy-50">
+              <Link href="/kesfet" className={`block px-3 py-2.5 rounded-lg text-sm font-medium ${pathname?.startsWith('/kesfet') ? 'text-teal-700 bg-teal-50' : 'text-navy-700 hover:bg-navy-50'}`}>
+                Keşfet
+              </Link>
+              <Link href="/soru-cevap" className={`block px-3 py-2.5 rounded-lg text-sm font-medium ${pathname?.startsWith('/soru-cevap') ? 'text-teal-700 bg-teal-50' : 'text-navy-700 hover:bg-navy-50'}`}>
+                Soru - Cevap
+              </Link>
+              <Link href="/dersler" className={`block px-3 py-2.5 rounded-lg text-sm font-medium ${pathname?.startsWith('/dersler') ? 'text-teal-700 bg-teal-50' : 'text-navy-700 hover:bg-navy-50'}`}>
                 Dersler
               </Link>
               <Link href="/nasil-calisir" className="block px-3 py-2.5 rounded-lg text-sm font-medium text-navy-700 hover:bg-navy-50">

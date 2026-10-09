@@ -10,6 +10,9 @@ import {
 } from 'lucide-react';
 import NoteCard from '@/components/NoteCard';
 import ExamCountdown from '@/components/ExamCountdown';
+import { UNIVERSITY, getDailyQuote } from '@/lib/constants';
+
+const dailyQuote = getDailyQuote();
 
 export default function HomePage() {
   const { data: session } = useSession();
@@ -111,7 +114,7 @@ export default function HomePage() {
           <div className="max-w-3xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-full text-sm text-teal-300 mb-6 backdrop-blur-sm border border-white/10">
               <GraduationCap className="w-4 h-4" />
-              Bandırma Onyedi Eylül Üniversitesi Öğrenci Platformu
+              {UNIVERSITY.name} Öğrenci Platformu
             </div>
             
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight">
@@ -186,9 +189,9 @@ export default function HomePage() {
           <div className="flex-1 text-center md:text-left">
             <h3 className="text-sm font-bold text-navy-400 uppercase tracking-wider mb-1">Günün Sözü</h3>
             <p className="text-lg font-medium text-navy-800 italic">
-              "Başarı, her gün tekrarlanan küçük çabaların toplamıdır."
+              &ldquo;{dailyQuote.text}&rdquo;
             </p>
-            <p className="text-sm text-navy-500 mt-1">— Robert Collier</p>
+            <p className="text-sm text-navy-500 mt-1">— {dailyQuote.author}</p>
           </div>
         </div>
       </section>

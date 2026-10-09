@@ -1,3 +1,5 @@
+import { UNIVERSITY } from '@/lib/constants';
+
 export default function TermsOfUsePage() {
   return (
     <div className="container-app py-8 max-w-4xl mx-auto prose prose-navy">
@@ -12,7 +14,7 @@ export default function TermsOfUsePage() {
 
       <h2>2. Hizmetin Amacı</h2>
       <p>
-        Platform, Balıkesir Üniversitesi öğrencileri başta olmak üzere üniversite öğrencilerinin kendi hazırladıkları ders notlarını paylaşmalarını sağlayan eğitim amaçlı ücretsiz bir sosyal platformdur.
+        Platform, {UNIVERSITY.name} öğrencileri başta olmak üzere üniversite öğrencilerinin kendi hazırladıkları ders notlarını paylaşmalarını sağlayan eğitim amaçlı ücretsiz bir sosyal platformdur.
       </p>
 
       <h2>3. Kullanıcı Yükümlülükleri</h2>

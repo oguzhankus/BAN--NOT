@@ -34,7 +34,8 @@ export async function GET(request: NextRequest) {
       const placeholders = noteIds.map(() => '?').join(',');
       const files = db.prepare(`SELECT id, note_id, original_name, mime_type, file_size FROM note_files WHERE note_id IN (${placeholders})`).all(...noteIds);
       
-      const filesByNote = files.reduce((acc: any, file: any) => {
+      type NoteFileRow = { id: string; note_id: string; original_name: string; mime_type: string; file_size: number };
+      const filesByNote = (files as NoteFileRow[]).reduce<Record<string, NoteFileRow[]>>((acc, file) => {
         if (!acc[file.note_id]) acc[file.note_id] = [];
         acc[file.note_id].push(file);
         return acc;

@@ -2,9 +2,9 @@ import { NextRequest } from 'next/server';
 import { ensureDb, successResponse, errorResponse } from '@/lib/api-utils';
 import { v4 as uuid } from 'uuid';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { PDFParse } from 'pdf-parse';
 import path from 'path';
 import fs from 'fs';
-const pdfParse = require('pdf-parse');
 
 export async function GET(
   request: NextRequest,
@@ -35,7 +35,8 @@ export async function GET(
           const filePath = path.resolve(process.cwd(), file.storage_path);
           if (fs.existsSync(filePath)) {
             const dataBuffer = fs.readFileSync(filePath);
-            const pdfData = await pdfParse(dataBuffer);
+            const parser = new PDFParse({ data: dataBuffer });
+            const pdfData = await parser.getText();
             // Sadece ilk ~10000 karakteri al (Hızlı yanıt ve token tasarrufu için)
             noteText = pdfData.text.substring(0, 10000);
           }

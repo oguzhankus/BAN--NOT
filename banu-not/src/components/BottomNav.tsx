@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Home, Search, MessageCircle, MessageSquare, User } from 'lucide-react';
+import { Home, Search, MessageCircle, MessageSquare, User, LogIn } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
 export default function BottomNav() {
@@ -14,20 +14,25 @@ export default function BottomNav() {
     return null;
   }
 
-  const navItems = [
-    { name: 'Ana Sayfa', href: '/', icon: Home },
-    { name: 'Keşfet', href: '/kesfet', icon: Search },
-    { name: 'Soru-Cevap', href: '/soru-cevap', icon: MessageCircle },
-    { name: 'Mesajlar', href: '/mesajlar', icon: MessageSquare, requiresAuth: true },
-    { name: 'Profil', href: '/profil', icon: User, requiresAuth: true },
-  ];
+  const navItems = session
+    ? [
+        { name: 'Ana Sayfa', href: '/', icon: Home },
+        { name: 'Keşfet', href: '/kesfet', icon: Search },
+        { name: 'Soru-Cevap', href: '/soru-cevap', icon: MessageCircle },
+        { name: 'Mesajlar', href: '/mesajlar', icon: MessageSquare },
+        { name: 'Profil', href: '/profil', icon: User },
+      ]
+    : [
+        { name: 'Ana Sayfa', href: '/', icon: Home },
+        { name: 'Keşfet', href: '/kesfet', icon: Search },
+        { name: 'Soru-Cevap', href: '/soru-cevap', icon: MessageCircle },
+        { name: 'Giriş', href: '/giris', icon: LogIn },
+      ];
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-navy-100 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] z-50 pb-safe">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark-nav-bar border-t border-navy-100 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] z-50 pb-safe">
       <div className="flex items-center justify-around px-2 h-16">
         {navItems.map((item) => {
-          if (item.requiresAuth && !session) return null;
-          
           const isActive = item.href === '/' ? pathname === '/' : pathname?.startsWith(item.href);
           const Icon = item.icon;
           

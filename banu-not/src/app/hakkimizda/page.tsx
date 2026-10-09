@@ -1,4 +1,5 @@
 import { BookOpen, Users, ShieldCheck, Heart } from 'lucide-react';
+import { UNIVERSITY } from '@/lib/constants';
 
 export default function AboutPage() {
   return (
@@ -6,7 +7,7 @@ export default function AboutPage() {
       <div className="text-center max-w-2xl mx-auto mb-16">
         <h1 className="text-3xl sm:text-4xl font-bold text-navy-900 mb-6">Biz Kimiz?</h1>
         <p className="text-lg text-navy-600 leading-relaxed">
-          BANÜ NOT, Balıkesir Üniversitesi öğrencileri tarafından, yine Balıkesir Üniversitesi öğrencileri için geliştirilmiş, kar amacı gütmeyen eğitim odaklı bir bilgi paylaşım platformudur.
+          BANÜ NOT, {UNIVERSITY.name} öğrencileri tarafından, yine {UNIVERSITY.shortName} öğrencileri için geliştirilmiş, kar amacı gütmeyen eğitim odaklı bir bilgi paylaşım platformudur.
         </p>
       </div>
 

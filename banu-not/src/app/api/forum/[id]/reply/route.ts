@@ -4,14 +4,14 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { v4 as uuid } from 'uuid';
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return errorResponse('Giriş yapmalısınız', 401);
 
     const db = await ensureDb();
     const userId = (session.user as any).id;
-    const postId = params.id;
+    const { id: postId } = await params;
     const { content } = await request.json();
 
     if (!content || content.trim().length < 5) {

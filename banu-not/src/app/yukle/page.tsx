@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -13,7 +13,7 @@ import { useToast } from '@/components/Toast';
 
 const STEPS = ['Dosya', 'Bilgiler', 'Kategori', 'Detaylar', 'Önizleme'];
 
-export default function UploadPage() {
+function UploadPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -440,5 +440,13 @@ export default function UploadPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function UploadPage() {
+  return (
+    <Suspense fallback={<div className="container-app py-8">Yükleniyor...</div>}>
+      <UploadPageContent />
+    </Suspense>
   );
 }

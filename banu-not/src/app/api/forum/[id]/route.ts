@@ -3,10 +3,10 @@ import { ensureDb, successResponse, errorResponse } from '@/lib/api-utils';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const db = await ensureDb();
-    const postId = params.id;
+    const { id: postId } = await params;
 
     // View count increment logic
     db.prepare(`UPDATE forum_posts SET view_count = view_count + 1 WHERE id = ?`).run(postId);
