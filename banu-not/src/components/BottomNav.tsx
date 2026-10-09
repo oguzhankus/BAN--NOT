@@ -30,7 +30,7 @@ export default function BottomNav() {
       ];
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark-nav-bar border-t border-navy-100 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] z-50 pb-safe">
+    <div className="site-bottom-nav md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-navy-100 bg-white pb-safe shadow-[0_-8px_24px_rgba(16,42,67,0.07)]">
       <div className="flex items-center justify-around px-2 h-16">
         {navItems.map((item) => {
           const isActive = item.href === '/' ? pathname === '/' : pathname?.startsWith(item.href);
@@ -40,14 +40,15 @@ export default function BottomNav() {
             <Link 
               key={item.href} 
               href={item.href}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
-                isActive ? 'text-teal-600' : 'text-navy-400 hover:text-navy-600'
+              aria-current={isActive ? 'page' : undefined}
+              className={`site-bottom-nav-link flex h-full w-full flex-col items-center justify-center space-y-1 ${
+                isActive ? 'text-teal-800' : 'text-navy-400 hover:text-navy-700'
               }`}
             >
-              <div className={`relative p-1 rounded-xl transition-all duration-300 ${isActive ? 'bg-teal-50' : ''}`}>
-                <Icon className={`w-6 h-6 ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+              <div className={`relative rounded-xl p-1 ${isActive ? 'bg-teal-50' : ''}`}>
+                <Icon className={`h-5 w-5 ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
               </div>
-              <span className={`text-[10px] font-semibold ${isActive ? 'text-teal-700' : ''}`}>
+              <span className={`text-[10px] font-semibold ${isActive ? 'text-teal-800' : ''}`}>
                 {item.name}
               </span>
             </Link>

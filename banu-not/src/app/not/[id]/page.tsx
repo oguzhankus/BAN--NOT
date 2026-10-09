@@ -5,9 +5,8 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Download, Bookmark, BookmarkCheck, Heart, Star, MessageSquare,
-  Flag, Share2, FileText, Calendar, User, Eye, ArrowLeft,
-  Send, AlertCircle, ChevronRight, Trash2, Edit, Sparkles
+  Download, Heart, Star, MessageSquare, Flag, Share2, FileText,
+  Calendar, Eye, Send, ChevronRight, Trash2, Sparkles
 } from 'lucide-react';
 import { getNoteTypeLabel, getSemesterLabel, formatFileSize, formatDate, timeAgo, REPORT_REASONS } from '@/lib/constants';
 import { useToast } from '@/components/Toast';
@@ -244,7 +243,7 @@ export default function NoteDetailPage() {
   const isAdmin = user?.role === 'admin' || user?.role === 'moderator';
 
   return (
-    <div className="container-app py-6 sm:py-8 max-w-4xl mx-auto">
+    <div className="container-app note-detail-page mx-auto max-w-5xl py-6 sm:py-8">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1 text-sm text-navy-500 mb-4 flex-wrap" aria-label="Breadcrumb">
         <Link href="/" className="hover:text-navy-700">Ana Sayfa</Link>
@@ -259,41 +258,38 @@ export default function NoteDetailPage() {
       </nav>
 
       {/* Note header */}
-      <div className="mb-6">
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          <span className="badge badge-teal">{getNoteTypeLabel(note.note_type)}</span>
-          {note.course_code && <span className="badge badge-navy">{note.course_code}</span>}
-          {note.semester && <span className="badge badge-accent">{getSemesterLabel(note.semester)}</span>}
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-navy-900 leading-tight">{note.title}</h1>
-        
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-sm text-navy-500">
-          <Link href={`/kullanici/${note.user_id}`} className="flex items-center gap-1.5 hover:text-teal-600 transition-colors">
-            <User className="w-4 h-4" />
-            {note.user_display_name}
-          </Link>
-          {user && user.id !== note.user_id && (
-            <Link href={`/mesajlar?userId=${note.user_id}`} className="flex items-center gap-1 hover:text-teal-600 transition-colors bg-teal-50 px-2 py-0.5 rounded-full text-teal-700">
-              <MessageSquare className="w-3.5 h-3.5" />
-              Mesaj At
+      <div className="note-detail-header card relative mb-6 overflow-hidden p-5 sm:p-7">
+        <div aria-hidden="true" className="note-detail-header-glow absolute inset-0" />
+        <div className="relative">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="badge badge-teal">{getNoteTypeLabel(note.note_type)}</span>
+            {note.course_code && <span className="badge badge-navy">{note.course_code}</span>}
+            {note.semester && <span className="badge badge-accent">{getSemesterLabel(note.semester)}</span>}
+          </div>
+          <h1 className="max-w-4xl text-2xl font-bold leading-tight tracking-tight text-navy-900 sm:text-3xl lg:text-4xl">{note.title}</h1>
+
+          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3 text-sm text-navy-500">
+            <Link href={`/kullanici/${note.user_id}`} className="inline-flex items-center gap-2 font-semibold text-navy-700 transition-colors hover:text-teal-700">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-50 text-teal-800">
+                {(note.user_display_name || 'A').charAt(0).toUpperCase()}
+              </span>
+              {note.user_display_name || 'Anonim'}
             </Link>
-          )}
-          <span className="flex items-center gap-1.5 ml-2">
-            <Calendar className="w-4 h-4" />
-            {formatDate(note.created_at)}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Download className="w-4 h-4" />
-            {note.download_count} indirme
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Eye className="w-4 h-4" />
-            {note.view_count} görüntülenme
-          </span>
-          <button onClick={() => document.getElementById('comments-section')?.scrollIntoView({ behavior: 'smooth' })} className="flex items-center gap-1.5 hover:text-teal-600 transition-colors">
-            <MessageSquare className="w-4 h-4" />
-            {note.comments?.length || 0} yorum
-          </button>
+            {user && user.id !== note.user_id && (
+              <Link href={`/mesajlar?userId=${note.user_id}`} className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800 transition-colors hover:bg-teal-100">
+                <MessageSquare className="h-3.5 w-3.5" /> Mesaj At
+              </Link>
+            )}
+            <span className="inline-flex items-center gap-1.5"><Calendar className="h-4 w-4" /> {formatDate(note.created_at)}</span>
+            <span className="inline-flex items-center gap-1.5"><Download className="h-4 w-4" /> {note.download_count} indirme</span>
+            <span className="inline-flex items-center gap-1.5"><Eye className="h-4 w-4" /> {note.view_count} görüntülenme</span>
+            <button
+              onClick={() => document.getElementById('comments-section')?.scrollIntoView({ behavior: 'smooth' })}
+              className="inline-flex items-center gap-1.5 transition-colors hover:text-teal-700"
+            >
+              <MessageSquare className="h-4 w-4" /> {note.comments?.length || 0} yorum
+            </button>
+          </div>
         </div>
       </div>
 
@@ -363,23 +359,23 @@ export default function NoteDetailPage() {
       )}
 
       {/* File info & actions */}
-      <div className="card p-5 mb-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-red-50 rounded-lg flex items-center justify-center">
-              <FileText className="w-6 h-6 text-red-500" />
+      <div className="note-file-actions card mb-6 p-4 sm:p-5">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50">
+              <FileText className="h-6 w-6 text-red-500" />
             </div>
-            <div>
-              <p className="font-medium text-navy-900">
+            <div className="min-w-0">
+              <p className="break-all font-semibold text-navy-900">
                 {note.files?.[0]?.original_name || 'Dosya'}
               </p>
-              <p className="text-sm text-navy-500">
+              <p className="mt-0.5 text-xs text-navy-500 sm:text-sm">
                 {note.files?.[0]?.mime_type?.split('/')[1]?.toUpperCase()} • {formatFileSize(note.files?.[0]?.file_size || 0)}
               </p>
             </div>
           </div>
           
-          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <a
               href={user ? `/api/download/${id}` : '#'}
               className="btn btn-primary flex-1 sm:flex-none relative overflow-hidden group"

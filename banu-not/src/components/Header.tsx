@@ -100,81 +100,74 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-navy-100 shadow-sm">
+    <header className="site-header sticky top-0 z-40">
       <div className="container-app">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex h-[4.5rem] items-center justify-between gap-3">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 shrink-0" aria-label="Ana sayfa">
-            <div className="w-8 h-8 bg-navy-800 rounded-lg flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-white" />
+          <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="Ana sayfa">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-navy-800 to-teal-700 shadow-[0_4px_10px_rgba(16,42,67,0.18)] ring-1 ring-white/20">
+              <BookOpen className="h-[18px] w-[18px] text-white" />
             </div>
-            <span className="text-lg font-bold text-navy-900 hidden sm:block">
+            <span className="hidden text-[17px] font-extrabold tracking-tight text-navy-900 sm:block">
               BANÜ <span className="text-teal-600">NOT</span>
             </span>
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1" aria-label="Ana navigasyon">
+          <nav className="hidden items-center gap-0.5 xl:flex" aria-label="Ana navigasyon">
             <Link
               href="/kesfet"
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                pathname?.startsWith('/kesfet') ? 'text-teal-700 bg-teal-50' : 'text-navy-600 hover:text-navy-900 hover:bg-navy-50'
-              }`}
+              data-current={pathname?.startsWith('/kesfet') ? 'true' : undefined}
+              className="site-nav-link"
             >
               Keşfet
             </Link>
             <Link
               href="/soru-cevap"
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                pathname?.startsWith('/soru-cevap') ? 'text-teal-700 bg-teal-50' : 'text-navy-600 hover:text-navy-900 hover:bg-navy-50'
-              }`}
+              data-current={pathname?.startsWith('/soru-cevap') ? 'true' : undefined}
+              className="site-nav-link"
             >
               Soru - Cevap
             </Link>
             <Link
               href="/dersler"
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                pathname?.startsWith('/dersler') ? 'text-teal-700 bg-teal-50' : 'text-navy-600 hover:text-navy-900 hover:bg-navy-50'
-              }`}
+              data-current={pathname?.startsWith('/dersler') ? 'true' : undefined}
+              className="site-nav-link"
             >
               Dersler
             </Link>
             <Link
               href="/nasil-calisir"
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                pathname === '/nasil-calisir' ? 'text-teal-700 bg-teal-50' : 'text-navy-600 hover:text-navy-900 hover:bg-navy-50'
-              }`}
+              data-current={pathname === '/nasil-calisir' ? 'true' : undefined}
+              className="site-nav-link"
             >
               Nasıl Çalışır
             </Link>
             <Link
               href="/liderlik-tablosu"
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                pathname === '/liderlik-tablosu' ? 'text-teal-700 bg-teal-50' : 'text-navy-600 hover:text-navy-900 hover:bg-navy-50'
-              }`}
+              data-current={pathname === '/liderlik-tablosu' ? 'true' : undefined}
+              className="site-nav-link"
             >
               Liderlik Tablosu
             </Link>
             <Link
               href="/not-hesaplama"
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                pathname === '/not-hesaplama' ? 'text-teal-700 bg-teal-50' : 'text-navy-600 hover:text-navy-900 hover:bg-navy-50'
-              }`}
+              data-current={pathname === '/not-hesaplama' ? 'true' : undefined}
+              className="site-nav-link"
             >
               Not Hesapla
             </Link>
             <Link
               href="/istekler"
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                pathname === '/istekler' ? 'text-teal-700 bg-teal-50' : 'text-navy-600 hover:text-navy-900 hover:bg-navy-50'
-              }`}
+              data-current={pathname === '/istekler' ? 'true' : undefined}
+              className="site-nav-link"
             >
               Not İstekleri
             </Link>
           </nav>
 
           {/* Desktop search */}
-          <form onSubmit={handleSearch} className="hidden lg:flex items-center flex-1 max-w-xs mx-4">
+          <form onSubmit={handleSearch} className="hidden min-w-[150px] max-w-[220px] flex-1 items-center xl:flex xl:mx-1 2xl:mx-3">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-navy-400" />
               <input
@@ -182,14 +175,14 @@ export default function Header() {
                 placeholder="Not veya ders ara..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="input pl-9 pr-3 py-2 text-sm"
+                className="input border-navy-100 bg-navy-50/70 py-2 pl-9 pr-3 text-sm focus:bg-white"
                 aria-label="Arama"
               />
             </div>
           </form>
 
           {/* Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {session ? (
               <>
                 <Link
@@ -203,7 +196,7 @@ export default function Header() {
                 {/* Theme Toggle */}
                 <button
                   onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  className="p-2 rounded-lg text-navy-500 hover:text-navy-700 hover:bg-navy-50 transition-colors"
+                  className="site-icon-button"
                   aria-label="Karanlık Modu Aç/Kapat"
                 >
                   {mounted ? (theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />) : <div className="w-5 h-5" />}
@@ -212,7 +205,7 @@ export default function Header() {
                 {/* Messages */}
                 <Link
                   href="/mesajlar"
-                  className="relative p-2 rounded-lg text-navy-500 hover:text-navy-700 hover:bg-navy-50 transition-colors"
+                  className="site-icon-button relative"
                   aria-label="Mesajlar"
                 >
                   <MessageSquare className="w-5 h-5" />
@@ -228,7 +221,7 @@ export default function Header() {
                       setNotificationsOpen(!notificationsOpen);
                       if (!notificationsOpen && unreadCount > 0) markAsRead();
                     }}
-                    className="relative p-2 rounded-lg text-navy-500 hover:text-navy-700 hover:bg-navy-50 transition-colors"
+                    className="site-icon-button relative"
                     aria-label="Bildirimler"
                   >
                     <Bell className="w-5 h-5" />
@@ -274,7 +267,7 @@ export default function Header() {
                 <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-navy-50 transition-colors"
+                    className="flex min-h-10 items-center gap-2 rounded-xl border border-transparent p-1 transition-colors hover:border-navy-100 hover:bg-white"
                     aria-expanded={userMenuOpen}
                     aria-haspopup="true"
                     aria-label="Kullanıcı menüsü"
@@ -343,7 +336,7 @@ export default function Header() {
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg text-navy-500 hover:text-navy-700 hover:bg-navy-50 transition-colors"
+            className="site-icon-button xl:hidden"
               aria-label={mobileMenuOpen ? 'Menüyü kapat' : 'Menüyü aç'}
               aria-expanded={mobileMenuOpen}
             >
@@ -355,8 +348,8 @@ export default function Header() {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-navy-100 bg-white">
-          <div className="container-app py-4 space-y-3">
+        <div className="xl:hidden border-t border-navy-100 bg-white">
+          <div className="container-app space-y-3 py-4">
             <form onSubmit={handleSearch}>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-navy-400" />
@@ -371,25 +364,25 @@ export default function Header() {
               </div>
             </form>
             <nav className="space-y-1" aria-label="Mobil navigasyon">
-              <Link href="/kesfet" className={`block px-3 py-2.5 rounded-lg text-sm font-medium ${pathname?.startsWith('/kesfet') ? 'text-teal-700 bg-teal-50' : 'text-navy-700 hover:bg-navy-50'}`}>
+              <Link href="/kesfet" className={`block rounded-xl px-3 py-2.5 text-sm font-semibold ${pathname?.startsWith('/kesfet') ? 'text-teal-800 bg-teal-50' : 'text-navy-700 hover:bg-navy-50'}`}>
                 Keşfet
               </Link>
-              <Link href="/soru-cevap" className={`block px-3 py-2.5 rounded-lg text-sm font-medium ${pathname?.startsWith('/soru-cevap') ? 'text-teal-700 bg-teal-50' : 'text-navy-700 hover:bg-navy-50'}`}>
+              <Link href="/soru-cevap" className={`block rounded-xl px-3 py-2.5 text-sm font-semibold ${pathname?.startsWith('/soru-cevap') ? 'text-teal-800 bg-teal-50' : 'text-navy-700 hover:bg-navy-50'}`}>
                 Soru - Cevap
               </Link>
-              <Link href="/dersler" className={`block px-3 py-2.5 rounded-lg text-sm font-medium ${pathname?.startsWith('/dersler') ? 'text-teal-700 bg-teal-50' : 'text-navy-700 hover:bg-navy-50'}`}>
+              <Link href="/dersler" className={`block rounded-xl px-3 py-2.5 text-sm font-semibold ${pathname?.startsWith('/dersler') ? 'text-teal-800 bg-teal-50' : 'text-navy-700 hover:bg-navy-50'}`}>
                 Dersler
               </Link>
-              <Link href="/nasil-calisir" className="block px-3 py-2.5 rounded-lg text-sm font-medium text-navy-700 hover:bg-navy-50">
+              <Link href="/nasil-calisir" className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-navy-700 hover:bg-navy-50">
                 Nasıl Çalışır
               </Link>
-              <Link href="/liderlik-tablosu" className="block px-3 py-2.5 rounded-lg text-sm font-medium text-navy-700 hover:bg-navy-50">
+              <Link href="/liderlik-tablosu" className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-navy-700 hover:bg-navy-50">
                 Liderlik Tablosu
               </Link>
-              <Link href="/not-hesaplama" className="block px-3 py-2.5 rounded-lg text-sm font-medium text-navy-700 hover:bg-navy-50">
+              <Link href="/not-hesaplama" className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-navy-700 hover:bg-navy-50">
                 Not Hesapla
               </Link>
-              <Link href="/istekler" className="block px-3 py-2.5 rounded-lg text-sm font-medium text-navy-700 hover:bg-navy-50">
+              <Link href="/istekler" className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-navy-700 hover:bg-navy-50">
                 Not İstekleri
               </Link>
               {session ? (

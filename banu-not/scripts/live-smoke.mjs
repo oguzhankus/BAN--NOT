@@ -104,7 +104,7 @@ async function main() {
     ...process.env,
     BANUNOT_DB_PATH: databasePath,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'local-live-smoke-secret-only',
-    NEXTAUTH_URL: '',
+    NEXTAUTH_URL: 'http://127.0.0.1:3000',
     NEXT_TELEMETRY_DISABLED: '1',
   };
   let server;

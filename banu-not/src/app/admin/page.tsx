@@ -306,7 +306,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[250px_minmax(0,1fr)]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[250px_minmax(0,1fr)]">
           <aside className="h-fit rounded-2xl border border-navy-100 bg-white p-3 shadow-[0_8px_30px_rgba(16,42,67,0.04)] xl:sticky xl:top-24">
             <div className="hidden items-center gap-3 rounded-xl bg-navy-950 p-4 text-white xl:flex">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
@@ -698,7 +698,7 @@ function Dashboard({ data, onNavigate }: { data: AdminData; onNavigate: (tab: Ta
         })}
       </div>
 
-      <div className="grid gap-5 2xl:grid-cols-[1.2fr_0.8fr]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 2xl:grid-cols-[1.2fr_0.8fr]">
         <section className="rounded-2xl border border-navy-100 bg-white p-5 shadow-sm sm:p-6">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>

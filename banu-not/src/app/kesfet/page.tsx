@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/Toast';
 import {
-  Search, Filter, X, ChevronDown, SlidersHorizontal,
-  BookOpen, ArrowUpDown, ChevronLeft, ChevronRight
+  Search, Filter, X, SlidersHorizontal,
+  BookOpen, ArrowUpDown, ChevronLeft, ChevronRight,
+  ArrowRight, Sparkles, GraduationCap
 } from 'lucide-react';
 import NoteCard from '@/components/NoteCard';
 import { NOTE_TYPES, SEMESTERS } from '@/lib/constants';
@@ -31,7 +32,6 @@ function ExploreContent() {
   const [totalPages, setTotalPages] = useState(1);
 
   const [query, setQuery] = useState(searchParams.get('q') || '');
-  const [universities, setUniversities] = useState<any[]>([]);
   const [faculties, setFaculties] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
@@ -52,7 +52,6 @@ function ExploreContent() {
       .then(r => r.json())
       .then(d => {
         if (d.success) {
-          setUniversities(d.data);
           if (d.data.length === 1 && !selectedUni) {
             setSelectedUni(d.data[0].id);
           }
@@ -154,7 +153,7 @@ function ExploreContent() {
     setPage(1);
   };
 
-  const hasActiveFilters = selectedFaculty || selectedDept || selectedCourse || selectedType || selectedSemester;
+  const hasActiveFilters = query.trim() || selectedFaculty || selectedDept || selectedCourse || selectedType || selectedSemester;
 
   const toggleTrackCourse = async () => {
     if (!session) {
@@ -188,40 +187,63 @@ function ExploreContent() {
   };
 
   return (
-    <div className="container-app py-6 sm:py-8">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-navy-900">Keşfet</h1>
-        <p className="text-navy-500 mt-1">Ders notlarını ara, filtrele ve keşfet.</p>
-      </div>
+    <div className="explore-page min-h-screen pb-12">
+      <section className="explore-hero relative isolate overflow-hidden text-white">
+        <div aria-hidden="true" className="explore-hero-glow absolute inset-0 -z-10" />
+        <div className="container-app relative py-9 sm:py-12 lg:py-14">
+          <div className="mx-auto max-w-5xl">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-teal-200">
+              <Sparkles className="h-3.5 w-3.5" /> BANÜ NOT kaynak arşivi
+            </div>
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">Aradığın kaynak, <span className="explore-hero-accent">bir adım uzakta.</span></h1>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-navy-200 sm:text-base">
+                  Ders notlarını ara, akademik kataloğa göre filtrele ve topluluğun paylaştığı kaynakları keşfet.
+                </p>
+              </div>
+              <div className="hidden items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-3.5 py-2.5 text-xs font-medium text-white/75 sm:inline-flex">
+                <GraduationCap className="h-4 w-4 text-teal-200" /> Öğrencilerden öğrencilere
+              </div>
+            </div>
 
-      {/* Search */}
-      <form onSubmit={(e) => { e.preventDefault(); setPage(1); searchNotes(); }} className="mb-6">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-navy-400" />
-            <input
-              type="search"
-              placeholder="Ders, konu veya not ara..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="input pl-10"
-              aria-label="Arama"
-            />
+            <form onSubmit={(e) => { e.preventDefault(); setPage(1); searchNotes(); }} className="explore-search mt-6 max-w-3xl">
+              <div className="flex items-center gap-2 rounded-2xl border border-white/15 bg-white p-1.5 pl-4 shadow-[0_18px_50px_rgba(1,13,26,0.25)] transition-[border-color,box-shadow] focus-within:border-teal-300/70 focus-within:shadow-[0_0_0_4px_rgba(79,209,197,0.12),0_18px_50px_rgba(1,13,26,0.25)]">
+                <Search className="h-5 w-5 shrink-0 text-navy-400" />
+                <input
+                  type="search"
+                  placeholder="Ders, konu veya not ara..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="min-w-0 flex-1 border-0 bg-transparent py-3 text-sm text-navy-900 outline-none placeholder:text-navy-400 focus:ring-0 sm:text-base"
+                  aria-label="Arama"
+                />
+                <button type="submit" className="btn btn-teal">
+                  Ara <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </form>
           </div>
-          <button type="submit" className="btn btn-primary">Ara</button>
-          <button
-            type="button"
-            onClick={() => setShowFilters(!showFilters)}
-            className={`btn ${showFilters ? 'btn-teal' : 'btn-secondary'} md:hidden`}
-            aria-label="Filtreleri göster"
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-          </button>
         </div>
-      </form>
+      </section>
 
-      <div className="flex flex-col md:flex-row gap-6">
+      <div className="container-app py-6 sm:py-8">
+      <div className="mb-4 flex items-center justify-between gap-3 md:hidden">
+        <p className="text-sm font-medium text-navy-600">
+          {loading ? 'Kaynaklar aranıyor…' : `${totalResults} kaynak`}
+        </p>
+        <button
+          type="button"
+          onClick={() => setShowFilters(!showFilters)}
+          className={`btn btn-sm ${showFilters ? 'btn-teal' : 'btn-secondary'}`}
+          aria-expanded={showFilters}
+          aria-label="Filtreleri göster"
+        >
+          <SlidersHorizontal className="h-4 w-4" /> Filtreler
+          {hasActiveFilters && <span className="ml-1 h-1.5 w-1.5 rounded-full bg-current" />}
+        </button>
+      </div>
+      <div className="flex flex-col gap-5 md:flex-row md:gap-6">
         {/* Sidebar Filters */}
         <aside className={`md:w-64 shrink-0 ${showFilters ? 'block' : 'hidden md:block'}`}>
           <div className="card p-4 space-y-4 sticky top-20">
@@ -343,7 +365,7 @@ function ExploreContent() {
           {/* Active filters & result count */}
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-navy-600">
-              {loading ? 'Aranıyor...' : `${totalResults} sonuç bulundu`}
+              {loading ? 'Aranıyor...' : `${totalResults} kaynak bulundu`}
             </p>
             <div className="hidden md:flex items-center gap-2">
               <ArrowUpDown className="w-4 h-4 text-navy-400" />
@@ -364,6 +386,11 @@ function ExploreContent() {
           {/* Active filter chips */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <div className="flex flex-wrap gap-2">
+                {query.trim() && (
+                  <button onClick={() => setQuery('')} className="badge badge-teal flex items-center gap-1 cursor-pointer hover:opacity-80">
+                    “{query.trim()}” <X className="w-3 h-3" />
+                  </button>
+                )}
                 {selectedFaculty && (
                   <button onClick={() => setSelectedFaculty('')} className="badge badge-teal flex items-center gap-1 cursor-pointer hover:opacity-80">
                     {faculties.find(f => f.id === selectedFaculty)?.short_name || 'Fakülte'} <X className="w-3 h-3" />
@@ -384,6 +411,12 @@ function ExploreContent() {
                     {NOTE_TYPES.find(t => t.value === selectedType)?.label} <X className="w-3 h-3" />
                   </button>
                 )}
+                {selectedSemester && (
+                  <button onClick={() => setSelectedSemester('')} className="badge badge-accent flex items-center gap-1 cursor-pointer hover:opacity-80">
+                    {SEMESTERS.find(semester => semester.value === selectedSemester)?.label || selectedSemester} <X className="w-3 h-3" />
+                  </button>
+                )}
+                </div>
               </div>
               
               {selectedCourse && session && (

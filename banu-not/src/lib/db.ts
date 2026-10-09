@@ -2,7 +2,10 @@ import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'path';
 
-const DB_PATH = path.resolve(process.cwd(), process.env.BANUNOT_DB_PATH || path.join('data', 'banunot.db'));
+const configuredDbPath = process.env.BANUNOT_DB_PATH?.trim();
+const DB_PATH = configuredDbPath
+  ? path.resolve(/*turbopackIgnore: true*/ process.cwd(), configuredDbPath)
+  : path.resolve(process.cwd(), 'data', 'banunot.db');
 
 let db: Database.Database;
 
