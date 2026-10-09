@@ -21,7 +21,9 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ displayName: '', bio: '', universityId: '', facultyId: '', departmentId: '', classYear: '' });
-  const [activeTab, setActiveTab] = useState<'notes' | 'courses'>('notes');
+  const [activeTab, setActiveTab] = useState<'notes' | 'courses' | 'targets'>('notes');
+  const [targetData, setTargetData] = useState<any>(null);
+  const [targetLoading, setTargetLoading] = useState(false);
 
   const [universities, setUniversities] = useState<any[]>([]);
   const [faculties, setFaculties] = useState<any[]>([]);
@@ -85,7 +87,33 @@ export default function ProfilePage() {
       if (coursesData.success) {
         setTrackedCourses(coursesData.data);
       }
+      
+      const targetsRes = await fetch('/api/targets');
+      const targetsJson = await targetsRes.json();
+      if (targetsJson.success) {
+        setTargetData(targetsJson.data);
+      }
     } catch { } finally { setLoading(false); }
+  }
+
+  async function updateTarget(type: string, value: number) {
+    setTargetLoading(true);
+    try {
+      await fetch('/api/targets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_type: type, target_value: value }),
+      });
+      showToast('Hedef güncellendi.');
+      // Reload targets
+      const targetsRes = await fetch('/api/targets');
+      const targetsJson = await targetsRes.json();
+      if (targetsJson.success) setTargetData(targetsJson.data);
+    } catch {
+      showToast('Hedef güncellenemedi.', 'error');
+    } finally {
+      setTargetLoading(false);
+    }
   }
 
   async function handleSaveProfile() {
@@ -321,7 +349,86 @@ export default function ProfilePage() {
             >
               Takip Ettiğim Dersler ({trackedCourses.length})
             </button>
+            <button 
+              onClick={() => setActiveTab('targets')}
+              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
+                activeTab === 'targets' ? 'bg-navy-900 text-white shadow-md' : 'text-navy-600 hover:bg-navy-50 hover:text-navy-900'
+              }`}
+            >
+              Hedefler
+            </button>
           </div>
+
+          {activeTab === 'targets' && targetData && (
+            <div className="space-y-6">
+              <div className="card p-6 bg-gradient-to-r from-orange-50 to-amber-50">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center shadow-lg shadow-orange-500/30">
+                    <span className="text-3xl">🔥</span>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-orange-900">Seri: {targetData.streak} Gün</h3>
+                    <p className="text-orange-700 font-medium">Her gün siteye girip not paylaşarak veya çalışarak serini koru!</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { type: 'study_time', label: 'Haftalık Çalışma (Dk)', progress: targetData.progress.study_time, icon: '⏱️' },
+                  { type: 'upload', label: 'Haftalık Not Yükleme', progress: targetData.progress.upload, icon: '📤' },
+                  { type: 'download', label: 'Haftalık Not İndirme', progress: targetData.progress.download, icon: '📥' },
+                ].map((item) => {
+                  const targetObj = targetData.targets.find((t: any) => t.target_type === item.type);
+                  const targetValue = targetObj?.target_value || 0;
+                  const pct = targetValue > 0 ? Math.min(100, Math.round((item.progress / targetValue) * 100)) : 0;
+                  
+                  return (
+                    <div key={item.type} className="card p-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-2xl">{item.icon}</span>
+                        <h4 className="font-bold text-navy-900 leading-tight">{item.label}</h4>
+                      </div>
+                      
+                      {targetValue > 0 ? (
+                        <>
+                          <div className="flex justify-between items-end mb-2">
+                            <span className="text-2xl font-black text-teal-600">{item.progress}</span>
+                            <span className="text-sm font-semibold text-navy-400">/ {targetValue}</span>
+                          </div>
+                          <div className="w-full bg-navy-100 rounded-full h-2.5 mb-4 overflow-hidden">
+                            <div className="bg-teal-500 h-2.5 rounded-full transition-all duration-1000" style={{ width: `${pct}%` }}></div>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-sm text-navy-500 mb-4 h-[44px]">Henüz hedef belirlenmedi.</p>
+                      )}
+                      
+                      <div className="flex gap-2 mt-auto">
+                        <input 
+                          type="number" 
+                          placeholder="Yeni"
+                          className="input w-full text-sm py-1 px-2"
+                          min="1"
+                          id={`input-${item.type}`}
+                        />
+                        <button 
+                          className="btn btn-teal py-1 px-3"
+                          disabled={targetLoading}
+                          onClick={() => {
+                            const val = parseInt((document.getElementById(`input-${item.type}`) as HTMLInputElement).value);
+                            if (val > 0) updateTarget(item.type, val);
+                          }}
+                        >
+                          Ayarla
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {activeTab === 'notes' && (
             <div>

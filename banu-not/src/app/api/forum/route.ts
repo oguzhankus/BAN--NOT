@@ -86,6 +86,15 @@ export async function POST(request: NextRequest) {
       return errorResponse('İçerik en az 10 karakter olmalıdır');
     }
 
+    // Rate limiting: Check if user posted a question in the last 30 seconds
+    const lastPost = db.prepare('SELECT created_at FROM forum_posts WHERE user_id = ? ORDER BY created_at DESC LIMIT 1').get(userId) as any;
+    if (lastPost) {
+      const timeDiff = Date.now() - new Date(lastPost.created_at).getTime();
+      if (timeDiff < 30000) {
+        return errorResponse('Çok sık soru soruyorsunuz. Lütfen biraz bekleyin.', 429);
+      }
+    }
+
     const postId = uuid();
     db.prepare(`
       INSERT INTO forum_posts (id, user_id, title, content, course_id, faculty_id, department_id)

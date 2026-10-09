@@ -23,6 +23,17 @@ export async function POST(request: NextRequest) {
       return errorResponse('Seçilen görev bulunamadı.', 404);
     }
 
+    // Verify session to prevent fake requests
+    const lastSession = db.prepare('SELECT completed_at FROM study_sessions WHERE user_id = ? ORDER BY completed_at DESC LIMIT 1').get(userId) as any;
+    if (lastSession) {
+      const lastCompleted = new Date(lastSession.completed_at).getTime();
+      const now = Date.now();
+      const diffMinutes = (now - lastCompleted) / 60000;
+      if (diffMinutes < duration - 1) { // 1 minute leniency
+        return errorResponse('Oturum süresi çok kısa. Hile yapmaya çalışıyor olabilirsiniz.', 400);
+      }
+    }
+
     const id = uuid();
     const completedAt = new Date();
     const startedAt = new Date(completedAt.getTime() - duration * 60_000);

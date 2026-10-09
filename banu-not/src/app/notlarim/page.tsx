@@ -41,10 +41,14 @@ export default function MyNotesPage() {
           {notes.map(note => (
             <div key={note.id}>
               <NoteCard note={note} />
-              <div className="flex gap-2 mt-1 ml-13 px-4">
+              <div className="flex gap-2 mt-2 ml-14 px-4 pb-4">
                 <span className={`badge text-xs ${note.status === 'published' ? 'badge-success' : note.status === 'pending_review' ? 'badge-warning' : 'badge-danger'}`}>
                   {note.status === 'published' ? 'Yayında' : note.status === 'pending_review' ? 'İncelemede' : note.status === 'rejected' ? 'Reddedildi' : note.status}
                 </span>
+                <span className="badge badge-ghost text-xs">👁️ {note.view_count || 0} Görüntülenme</span>
+                <span className="badge badge-ghost text-xs">📥 {note.download_count || 0} İndirme</span>
+                <span className="badge badge-ghost text-xs">💬 {note.comment_count || 0} Yorum</span>
+                <span className="badge badge-ghost text-xs">⭐ {note.avg_rating ? Number(note.avg_rating).toFixed(1) : 0} Puan ({note.rating_count || 0})</span>
               </div>
             </div>
           ))}

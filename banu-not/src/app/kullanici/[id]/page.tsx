@@ -11,7 +11,9 @@ export default function PublicProfilePage() {
   const [profile, setProfile] = useState<any>(null);
   const [notes, setNotes] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const [followInfo, setFollowInfo] = useState({ followers: 0, following: 0, isFollowing: false });
   const [loading, setLoading] = useState(true);
+  const [followLoading, setFollowLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -23,6 +25,7 @@ export default function PublicProfilePage() {
           setProfile(data.data.user);
           setNotes(data.data.notes);
           setStats(data.data.stats);
+          if (data.data.followInfo) setFollowInfo(data.data.followInfo);
         } else {
           setError(data.error || 'Kullanıcı bulunamadı.');
         }
@@ -35,6 +38,27 @@ export default function PublicProfilePage() {
     
     if (id) loadProfile();
   }, [id]);
+
+  async function toggleFollow() {
+    if (!profile) return;
+    setFollowLoading(true);
+    try {
+      const method = followInfo.isFollowing ? 'DELETE' : 'POST';
+      const res = await fetch(`/api/users/${profile.id}/follow`, { method });
+      const data = await res.json();
+      if (data.success) {
+        setFollowInfo(prev => ({
+          ...prev,
+          isFollowing: !prev.isFollowing,
+          followers: prev.followers + (prev.isFollowing ? -1 : 1)
+        }));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setFollowLoading(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -111,15 +135,29 @@ export default function PublicProfilePage() {
                 <div className="text-lg font-bold text-navy-900">{stats?.totalDownloads || 0}</div>
                 <div className="text-xs text-navy-500 uppercase tracking-wide">İndirme</div>
               </div>
+              <div className="w-px bg-navy-200"></div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-navy-900">{followInfo.followers}</div>
+                <div className="text-xs text-navy-500 uppercase tracking-wide">Takipçi</div>
+              </div>
             </div>
             
-            <Link 
-              href={`/mesajlar?userId=${profile.id}`} 
-              className="btn bg-teal-600 hover:bg-teal-700 text-white w-full sm:w-auto"
-            >
-              <MessageSquare className="w-4 h-4" />
-              Mesaj Gönder
-            </Link>
+            <div className="flex flex-col gap-2 w-full sm:w-auto">
+              <button 
+                onClick={toggleFollow} 
+                disabled={followLoading}
+                className={`btn ${followInfo.isFollowing ? 'bg-navy-100 text-navy-700 hover:bg-navy-200' : 'bg-teal-600 hover:bg-teal-700 text-white'} w-full sm:w-auto`}
+              >
+                {followInfo.isFollowing ? 'Takipten Çık' : 'Takip Et'}
+              </button>
+              <Link 
+                href={`/mesajlar?userId=${profile.id}`} 
+                className="btn border border-navy-200 text-navy-700 hover:bg-navy-50 w-full sm:w-auto"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Mesaj
+              </Link>
+            </div>
           </div>
         </div>
       </div>

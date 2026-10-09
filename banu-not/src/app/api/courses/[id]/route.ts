@@ -81,6 +81,25 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
       .filter(note => note.note_type === 'cikmis_soru')
       .sort((a, b) => (b.academic_year || '').localeCompare(a.academic_year || '') || b.download_count - a.download_count);
 
+    let isJoined = false;
+    let isAdmin = false;
+    const { getServerSession } = require('next-auth');
+    const { authOptions } = require('@/lib/auth');
+    const session = await getServerSession(authOptions);
+    
+    if (session?.user) {
+       const currentUserId = (session.user as any).id;
+       const join = db.prepare('SELECT 1 FROM user_courses WHERE user_id = ? AND course_id = ?').get(currentUserId, id);
+       if (join) isJoined = true;
+       isAdmin = (session.user as any).role === 'admin' || (session.user as any).role === 'moderator';
+    }
+
+    const announcements = db.prepare(`
+      SELECT * FROM announcements 
+      WHERE is_active = 1 
+      ORDER BY created_at DESC LIMIT 3
+    `).all();
+
     return successResponse({
       course,
       stats: {
@@ -90,6 +109,9 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
       },
       bestNotes,
       examQuestions,
+      isJoined,
+      isAdmin,
+      announcements
     });
   } catch (error) {
     console.error('Course detail error:', error);

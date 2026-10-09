@@ -77,7 +77,7 @@ export async function GET(
       JOIN users u ON c.user_id = u.id
       WHERE c.note_id = ? AND c.is_hidden = 0
       ORDER BY c.created_at ASC
-    `).all(userId || '', userId || '', userId || '', id);
+    `).all(userId || '', userId || '', id);
 
     // Increment view
     db.prepare('UPDATE notes SET view_count = view_count + 1 WHERE id = ?').run(id);

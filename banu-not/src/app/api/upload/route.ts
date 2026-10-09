@@ -133,6 +133,27 @@ export async function POST(request: NextRequest) {
       `).run(userId, noteId, requestId);
     }
 
+    // Notify followers if published
+    if (status === 'published') {
+      const followers = db.prepare(`
+        SELECT f.follower_id 
+        FROM follows f
+        JOIN notification_preferences np ON f.follower_id = np.user_id
+        WHERE f.following_id = ? AND np.followed_users = 1
+      `).all(userId) as { follower_id: string }[];
+      
+      const user = db.prepare('SELECT display_name FROM users WHERE id = ?').get(userId) as any;
+      const insertNotif = db.prepare('INSERT INTO notifications (id, user_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)');
+      
+      for (const f of followers) {
+        insertNotif.run(
+          uuid(), f.follower_id, 'new_note', 'Yeni Not',
+          `${user?.display_name || 'Takip ettiğin biri'} yeni bir not paylaştı: ${title}`,
+          `/not/${noteId}`
+        );
+      }
+    }
+
     return successResponse({
       id: noteId,
       status,

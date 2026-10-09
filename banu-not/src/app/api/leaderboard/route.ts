@@ -13,14 +13,15 @@ export async function GET(request: NextRequest) {
         u.avatar_url,
         u.bio,
         u.created_at,
-        COUNT(n.id) as note_count,
-        COALESCE(SUM(n.download_count), 0) as total_downloads
+        COUNT(DISTINCT n.id) as note_count,
+        COALESCE(SUM(n.download_count), 0) as total_downloads,
+        COALESCE((SELECT SUM(duration_minutes) FROM study_sessions WHERE user_id = u.id), 0) as study_minutes
       FROM users u
       LEFT JOIN notes n ON u.id = n.user_id AND n.status = 'published'
       WHERE u.is_active = 1 AND u.is_banned = 0
       GROUP BY u.id
-      HAVING note_count > 0
-      ORDER BY total_downloads DESC, note_count DESC
+      HAVING note_count > 0 OR study_minutes > 0
+      ORDER BY (total_downloads * 2 + note_count * 10 + study_minutes) DESC
       LIMIT 10
     `).all();
 

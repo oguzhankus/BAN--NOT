@@ -52,12 +52,35 @@ export async function GET(
       FROM notes WHERE user_id = ? AND status = 'published'
     `).get(userId) as any;
 
+    const followStats = db.prepare(`
+      SELECT 
+        (SELECT COUNT(*) FROM follows WHERE following_id = ?) as followers_count,
+        (SELECT COUNT(*) FROM follows WHERE follower_id = ?) as following_count
+    `).get(userId, userId) as any;
+
+    let isFollowing = false;
+    // We need session to check if current user follows
+    const { getServerSession } = require('next-auth');
+    const { authOptions } = require('@/lib/auth');
+    const session = await getServerSession(authOptions);
+    
+    if (session?.user) {
+       const currentUserId = (session.user as any).id;
+       const follow = db.prepare('SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?').get(currentUserId, userId);
+       if (follow) isFollowing = true;
+    }
+
     return successResponse({ 
       user, 
       notes,
       stats: {
         totalDownloads: stats?.total_downloads || 0,
         totalViews: stats?.total_views || 0,
+      },
+      followInfo: {
+        followers: followStats?.followers_count || 0,
+        following: followStats?.following_count || 0,
+        isFollowing
       }
     });
   } catch (error) {
